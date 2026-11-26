@@ -160,8 +160,10 @@ function newFlags(current: string[], prior: string[]): string[] {
 
 /**
  * The caller answered the family word challenge. The attempt is compared with
- * the stored hash and nowhere else: it is not sent to the AI provider or the
- * rules layer, and only "[redacted]" is stored. Replies are fixed lines that
+ * the stored hash and is never sent to the AI provider. Only "[redacted]" is
+ * stored. When the attempt FAILS, it is also scanned in memory by the rules
+ * and the payment/amount extractors (a scammer's wrong "answer" often is the
+ * pitch); a MATCHED attempt is never scanned. Replies are fixed lines that
  * never hint at how close the attempt was.
  */
 async function handleSafeWordAttempt(args: {
@@ -190,7 +192,17 @@ async function handleSafeWordAttempt(args: {
   const storedCaller = events
     .filter((e) => e.type === "transcript" && e.payload["speaker"] === "caller")
     .map((e) => (typeof e.payload["text"] === "string" ? e.payload["text"] : ""));
-  const rulesResult = scoreRules(storedCaller);
+  const storedRules = scoreRules(storedCaller);
+
+  // A FAILED attempt is scanned in memory only (rules and the payment/amount
+  // extractors). The text is never stored, logged or sent anywhere. A matched
+  // attempt is the safe word itself and is never scanned.
+  const rulesResult = matched ? storedRules : scoreRules([...storedCaller, speechResult]);
+  const attemptFlags = new Set(
+    matched ? [] : rulesResult.flags.filter((f) => !storedRules.flags.includes(f)),
+  );
+  const attemptPayment = matched ? null : extractPaymentMethod(speechResult);
+  const attemptAmount = matched ? null : extractAmount(speechResult);
 
   const priorFlagIds = events
     .filter((e) => e.type === "red_flag")
@@ -210,10 +222,20 @@ async function handleSafeWordAttempt(args: {
     await appendEvent({
       call_id: call.id,
       type: "red_flag",
-      payload: { type: "red_flag", flag: flagId, detail: "rules-only" },
+      payload: {
+        type: "red_flag",
+        flag: flagId,
+        detail: "rules-only",
+        ...(attemptFlags.has(flagId) ? { quote: SAFE_WORD_REDACTED } : {}),
+      },
     });
   }
-  await updateCall(call.call_sid, { risk_score: combined.score, risk_level: combined.level });
+  await updateCall(call.call_sid, {
+    risk_score: combined.score,
+    risk_level: combined.level,
+    ...(attemptPayment ? { payment_method: attemptPayment } : {}),
+    ...(attemptAmount ? { requested_amount: attemptAmount } : {}),
+  });
 
   const callerTurns = events.filter(
     (e) =>

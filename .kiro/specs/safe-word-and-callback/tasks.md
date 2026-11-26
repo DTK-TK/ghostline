@@ -48,7 +48,8 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
 - [x] **7. Engine: challenge and attempts.** Ask "What's the family word?" on a
   family claim, detect the challenge phase from the last system transcript,
   redact the attempt (event `attempt: "[redacted]"`, transcript "[safe word
-  attempt]", nothing sent to Gemini or the rules layer), apply -40 / +50, move
+  attempt]", nothing sent to Gemini; the rules layer sees a failed attempt in
+  memory only, see 7b), apply -40 / +50, move
   to `verified` or the HIGH flow. Requires conversation-and-scoring tasks 1, 2,
   8 and 14.
   - _Proof: `tests/safe-word.test.ts`: correct word gives `verified`; two wrong
@@ -57,6 +58,20 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
     the word._
   - _MVP, build item 5: Ask the challenge, check the word, redact the attempt._
   - _Re-plan: Safe-word score effects (-40 / +50) come from conversation-and-scoring tasks 14 (this item) and 2 and safe-word task 5 (build item 6), so the verified-state proof completes after item 6._
+
+- [x] **7b. Scan failed attempts in memory.** When `checkSafeWord` returns
+  false, run `scoreRules` and the payment/amount extractors on the attempt
+  text in memory only. Add the flags to the score, store them as `red_flag`
+  events with `quote: "[redacted]"`, and set `payment_method` and
+  `requested_amount` on the call. A matched attempt is never scanned. The
+  attempt text is never stored, logged or sent.
+  - _Proof: `tests/safe-word-engine.test.ts`: "I need 3000 in gift cards right
+    now" adds `payment_method` and `urgency`, sets `payment_method` and
+    `requested_amount`, and no stored event contains the text; a correct
+    answer that would trigger a rule is never scanned.
+    `tests/simulate-e2e.test.ts`: the grandparent scenario sends the
+    money-move checklist SMS to each family member._
+  - _MVP, build item 5: The wrong answer is often the scammer's pitch; the payment method must reach the score, alert and checklist without storing the words. Decision in design.md._
 
 - [x] **8. Redact before the transcript write.** Adjust
   `app/api/voice/turn/route.ts` (or move the write into the engine) so the

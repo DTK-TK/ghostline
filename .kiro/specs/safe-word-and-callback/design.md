@@ -8,6 +8,36 @@
 - The alert on denial follows the shared rule: sent immediately, never twice.
 - Phone numbers are masked in every log.
 
+## Decision: scan failed safe word attempts in memory
+
+Problem: a scammer's wrong "answer" is often the pitch ("I need 3000 in gift
+cards right now"). Ignoring it hid the payment method and amount from the
+score, the alert, the checklist SMS and the report.
+
+Decision:
+
+- When `checkSafeWord` returns `false`, run `scoreRules` and the
+  `extractPaymentMethod` / `extractAmount` extractors on the attempt text, in
+  memory only. Add the flags to the score (together with the stored caller
+  turns, so each flag still counts once). Store each flag that this attempt
+  newly found as a `red_flag` event with `quote: "[redacted]"`. Set
+  `calls.payment_method` and `calls.requested_amount` when found.
+- When the attempt matches, the text is not scanned at all.
+- The attempt text is still never stored, logged, sent to Gemini or placed in
+  a reply. It is read only by the rules and the two extractors, and then
+  dropped. The stored transcript stays `[safe word attempt]` and the
+  `safe_word_attempt` event stays `attempt: "[redacted]"`.
+- `red_flag` payloads gain an optional `quote` string. The live view shows a
+  stored `quote` instead of the last caller line.
+
+Trade-off: a wrong attempt that happens to contain a flag word (for example a
+real grandchild who mis-remembers the word and says "it's the bank thing")
+raises the score. A failed attempt already adds 50, so the extra rules points
+can only move a call toward HIGH that was already at risk.
+
+Also fixed: `extractAmount` cut "3000" to "300" (the grouped-digit pattern
+matched first). It now keeps plain digit runs whole.
+
 ## Module layout (target)
 
 ```
@@ -37,12 +67,15 @@ turn N: AI says claims_family -> reply = "What's the family word?"
 turn N+1: last system transcript is the challenge AND no matched attempt
           AND fewer than 2 attempts
    -> do NOT store the speech as a transcript; store "[safe word attempt]"
-   -> do NOT call Gemini or the rules layer on it
+   -> do NOT call Gemini on it; the rules layer sees it only after a miss
    -> candidates = [normalise(text), normalise(stripLeadIn(text))] (max 2)
    -> bcryptjs.compare each against households.safe_word_hash
    match:  safe_word_attempt {matched:true, attempt:"[redacted]"}
            score credit -40; verified unless final level is HIGH
    miss:   safe_word_attempt {matched:false, attempt:"[redacted]"}
+           scan the text in memory (rules + payment/amount extractors, see
+           "Decision: scan failed safe word attempts in memory");
+           red_flag events carry quote "[redacted]"
            +50; first miss: reply "Sorry, I didn't catch that. What's the family word?"
            second miss: score >= 100 -> HIGH flow
 ```

@@ -167,7 +167,7 @@ export type CallEventType = z.infer<typeof CallEventTypeSchema>;
 /** Per-type payload schemas. Each is validated before writing to the DB. */
 export const CallEventPayloadSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("transcript"),       text: z.string(), speaker: z.enum(["caller", "system"]) }),
-  z.object({ type: z.literal("red_flag"),         flag: z.string(), detail: z.string().optional() }),
+  z.object({ type: z.literal("red_flag"),         flag: z.string(), detail: z.string().optional(), quote: z.string().optional() }),
   z.object({ type: z.literal("safe_word_attempt"), matched: z.boolean(), attempt: z.string() }),
   z.object({ type: z.literal("callback_started"), target_phone: z.string() }),
   z.object({ type: z.literal("callback_result"),  outcome: z.string(), duration_seconds: z.number().int().optional() }),

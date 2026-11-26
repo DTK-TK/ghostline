@@ -6,7 +6,8 @@
  */
 
 export function extractAmount(text: string): string | null {
-  const pattern = /\$?\d{1,3}(?:,\d{3})*(?:\.\d{2})?|\d+\s*(?:dollars?|bucks?)/i;
+  // Grouped (3,000) or plain (3000) digits, so "3000" is not cut to "300".
+  const pattern = /\$?\d{1,3}(?:,\d{3})+(?:\.\d{2})?|\$?\d+(?:\.\d{2})?|\d+\s*(?:dollars?|bucks?)/i;
   const match = pattern.exec(text);
   return match?.[0] ?? null;
 }

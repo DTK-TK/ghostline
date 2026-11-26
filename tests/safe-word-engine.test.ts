@@ -148,4 +148,41 @@ describe("engine safe word challenge", () => {
       .map((e) => e.payload.text);
     expect(callerTexts).toEqual(["Hi Grandma, it's Emma", "[safe word attempt]"]);
   });
+  describe("failed attempts are scanned in memory only", () => {
+    const PITCH = "I need 3000 in gift cards right now";
+
+    it("a wrong answer adds payment_method and urgency, sets the call fields, and is never stored", async () => {
+      setup(false);
+      await say("Hi Grandma, it's Emma");
+      const r = await say(PITCH);
+      const flags = mem.events.filter((e) => e.type === "red_flag").map((e) => e.payload.flag);
+      expect(flags).toEqual(expect.arrayContaining(["payment_method", "urgency", "safe_word_fail"]));
+      for (const id of ["payment_method", "urgency"]) {
+        const ev = mem.events.find((e) => e.type === "red_flag" && e.payload.flag === id)!;
+        expect(ev.payload.quote).toBe("[redacted]");
+      }
+      expect(mem.call!.payment_method).toBe("gift card");
+      expect(mem.call!.requested_amount).toBe("3000");
+      // 40 + 20 from the attempt, 50 for the failure, capped at 100.
+      expect(r.riskScore).toBe(100);
+      expect(r.riskLevel).toBe("high");
+      expect(mem.gemini).toHaveBeenCalledTimes(1);
+      const stored = JSON.stringify(mem.events) + JSON.stringify(mem.call) + r.reply;
+      expect(stored).not.toContain("3000 in gift");
+      expect(stored).not.toContain(PITCH);
+      expect(stored).not.toContain("right now");
+    });
+
+    it("a correct answer is never scanned", async () => {
+      setup(false);
+      // A safe word that the rules and extractors WOULD flag if it were scanned.
+      mem.household.safe_word_hash = bcrypt.hashSync("bitcoin", 4);
+      await say("Hi Grandma, it's Emma");
+      const r = await say("bitcoin");
+      expect(r.nextState).toBe("verified");
+      expect(mem.events.some((e) => e.type === "red_flag" && e.payload.flag === "payment_method")).toBe(false);
+      expect(mem.call!.payment_method ?? null).toBeNull();
+      expect(JSON.stringify(mem.events)).not.toContain("bitcoin");
+    });
+  });
 });

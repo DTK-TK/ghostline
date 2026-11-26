@@ -6,7 +6,6 @@
  *
  * It does not cover the browser: the 1.5 s pacing, badges, meter and timer.
  *
- * All tests here pass; the checklist SMS needs calls.payment_method (task 6).
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
@@ -175,9 +174,9 @@ describe("grandparent (task 24, first half)", () => {
   it(
     "sends the checklist SMS to each family member",
     async () => {
-      // "cra" has no family claim. In "grandparent" the gift-card line is the
-      // challenge answer, which is redacted and never read for payment details.
-      await run("cra");
+      // In "grandparent" the gift-card line is a wrong safe word answer. It is
+      // scanned in memory only, which sets calls.payment_method.
+      await run("grandparent");
       const checklist = mem.sms.filter((s) => s.body.startsWith("Reminder for"));
       expect(checklist).toHaveLength(FAMILY.length);
     },

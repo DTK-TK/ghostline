@@ -192,10 +192,13 @@ export function deriveLiveStatus(
       if (!id || !KNOWN.has(id) || seen.has(id)) continue;
       seen.add(id);
       const fromCaller = id !== "safe_word_fail" && id !== "callback_denied";
+      // A stored quote (e.g. "[redacted]" for a flag found in a safe word
+      // attempt) wins over the last caller line.
+      const storedQuote = str(e.payload["quote"]);
       flags.push({
         id,
         label: FLAG_LABELS[id] ?? id,
-        quote: fromCaller ? truncate(lastCallerText) : "",
+        quote: storedQuote ?? (fromCaller ? truncate(lastCallerText) : ""),
       });
     }
   }
