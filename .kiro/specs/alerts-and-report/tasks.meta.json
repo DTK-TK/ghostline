@@ -198,6 +198,16 @@
         "executionId": "c78cbe22-5a24-4878-9a05-cc38018016c6",
         "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
         "timestamp": 1795698839431
+      },
+      {
+        "executionId": "405b63bf-9b95-4e48-8f62-7f9d6437d9f2",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795710713868
+      },
+      {
+        "executionId": "405b63bf-9b95-4e48-8f62-7f9d6437d9f2",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795710859647
       }
     ],
     "**12. Unique report per call.** Migration: `UNIQUE` index on": [
@@ -205,6 +215,16 @@
         "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
         "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
         "timestamp": 1795690241382
+      },
+      {
+        "executionId": "405b63bf-9b95-4e48-8f62-7f9d6437d9f2",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795710860549
+      },
+      {
+        "executionId": "405b63bf-9b95-4e48-8f62-7f9d6437d9f2",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795710919924
       }
     ],
     "**13. Report page to the UI rules.** Dark theme on screen, white in print,": [
@@ -212,6 +232,16 @@
         "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
         "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
         "timestamp": 1795690241467
+      },
+      {
+        "executionId": "405b63bf-9b95-4e48-8f62-7f9d6437d9f2",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795710920436
+      },
+      {
+        "executionId": "405b63bf-9b95-4e48-8f62-7f9d6437d9f2",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795711023721
       }
     ],
     "**17. End-to-end check.** Simulate a HIGH call with a gift-card script and": [
@@ -219,6 +249,11 @@
         "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
         "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
         "timestamp": 1795690241562
+      },
+      {
+        "executionId": "05a96b99-a6e0-40de-8972-6056e4ee996b",
+        "chatSessionId": "sess_f5b2d0d3-636c-499c-82ae-f439ea864f3c",
+        "timestamp": 1795711068172
       }
     ],
     "**8b. Claim statuses and retry.** The rest of original task 8: `sending`/`sent`/`failed` status on the claim row, compare-and-set retry of failed claims, `Promise.allSettled` over recipients.": [

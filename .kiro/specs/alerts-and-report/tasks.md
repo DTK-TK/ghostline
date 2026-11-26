@@ -130,7 +130,7 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
   - _MVP, build item 8: Proves alerts are sent once._
   - _Re-plan: Case (b) needs 8a; case (c) needs task 5._
 
-- [ ] **3. Replace the dynamic `import()` calls in `lib/report.ts` with static imports.**
+- [x] **3. Replace the dynamic `import()` calls in `lib/report.ts` with static imports.**
   Import `adminDb`, `CallSchema` and `FraudReportSchema` at the top. Remove the
   unused `getCallBySid` and `getHousehold` imports. Optionally add
   `getCallById()` to `lib/db.ts` instead of the inline query.
@@ -140,14 +140,14 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
     from the mocked call and events._
   - _MVP, build item 9: Static imports so the report code builds and mocks cleanly._
 
-- [ ] **12. Unique report per call.** Migration: `UNIQUE` index on
+- [x] **12. Unique report per call.** Migration: `UNIQUE` index on
   `fraud_reports(call_id)`; insert with conflict handling that returns the
   existing row.
   - _Proof: `tests/report.test.ts`: two concurrent `buildAndStoreReport` calls
     return the same row id and create one row (stateful fake)._
   - _MVP, build item 9: A repeated status callback must not create a second report._
 
-- [ ] **13. Report page to the UI rules.** Dark theme on screen, white in print,
+- [x] **13. Report page to the UI rules.** Dark theme on screen, white in print,
   base text 16 px or larger, shadcn `Card`/`Badge`, risk colours green-500,
   amber-500, red-500 with text labels, quotes shown, invalid or unknown id gives
   `notFound()`, `noindex`, `force-dynamic`.

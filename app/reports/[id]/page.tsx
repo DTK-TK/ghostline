@@ -1,184 +1,201 @@
 /**
  * app/reports/[id]/page.tsx
  *
- * Fraud report view — PDF/print friendly.
+ * Fraud report view. Dark on screen, white in print (see the @media print
+ * token remap in app/globals.css). Text is 16 px or larger.
  *
- * Shows the full structured fraud report and a "Copy for CAFC report"
- * textarea the family can copy and paste into the CAFC online form.
- * Nothing is submitted automatically from this page.
+ * Shows the structured fraud report and a "Copy for CAFC report" textarea the
+ * family can paste into the CAFC online form. Nothing is submitted
+ * automatically from this page.
  *
  * URL: /reports/{fraud_reports.id}
  *
- * Print: add  ?print=1  to open with the print dialog (handled in
- * report-client.tsx), or use the browser's
- * built-in Print (Ctrl/Cmd+P). The page uses Tailwind's print: variants to
- * hide the action buttons and show the full transcript.
+ * Print: use the Print button or the browser's own print (Ctrl/Cmd+P). Open
+ * with ?print=1 to start the print dialog (handled in report-client.tsx).
+ *
+ * Cache Components is on, so the route-segment `dynamic` export is not
+ * available. The data read happens inside <Suspense>, per request.
  */
 
+import type { Metadata } from "next";
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { loadReport, buildCafcText } from "@/lib/report";
+import { formatReportTime, parseReportId, riskDisplay } from "@/lib/report-view";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import ReportClient from "./report-client";
+
+export const metadata: Metadata = {
+  title: "Fraud report | Ghostline",
+  robots: { index: false, follow: false },
+};
 
 // params is a Promise in Next.js 15+.
 interface PageParams {
   params: Promise<{ id: string }>;
 }
 
-export default async function ReportPage({ params }: PageParams) {
-  const { id } = await params;
+export default function ReportPage({ params }: PageParams) {
+  return (
+    <Suspense
+      fallback={
+        <main className="mx-auto max-w-3xl p-8 text-base">Loading report...</main>
+      }
+    >
+      <ReportContent params={params} />
+    </Suspense>
+  );
+}
+
+async function ReportContent({ params }: PageParams) {
+  const { id: raw } = await params;
+  const id = parseReportId(raw);
+  if (!id) notFound();
 
   const result = await loadReport(id);
   if (!result) notFound();
 
   const { row, data } = result;
   const cafcText = buildCafcText(data);
+  const risk = riskDisplay(data.risk_level);
 
   return (
-    <main className="min-h-screen bg-white p-8 max-w-3xl mx-auto font-sans">
-      {/* Print header */}
-      <header className="mb-8 border-b pb-4">
+    <main className="mx-auto min-h-screen w-full max-w-3xl space-y-6 p-8 text-base">
+      <header className="space-y-4 border-b pb-4">
         {data.is_simulated && (
           <p
             role="note"
-            className="mb-4 border-2 border-red-600 bg-red-50 p-3 text-base font-bold text-red-800"
+            className="border-2 border-red-500 p-3 text-base font-bold text-red-500 print:text-black"
           >
             SIMULATED: this report comes from a test call. Do not file it with the
             police or the CAFC.
           </p>
         )}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              Ghostline Fraud Report
-            </h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Report ID: {row.id}
-            </p>
+            <h1 className="font-mono text-2xl font-bold">Ghostline Fraud Report</h1>
+            <p className="mt-1 text-base text-muted-foreground">Report ID: {row.id}</p>
           </div>
-          {/* Risk badge */}
-          <span
-            className={`px-3 py-1 rounded-full text-sm font-semibold uppercase ${
-              data.risk_level === "high"
-                ? "bg-red-100 text-red-800"
-                : data.risk_level === "medium"
-                  ? "bg-yellow-100 text-yellow-800"
-                  : "bg-green-100 text-green-800"
-            }`}
+          <Badge
+            variant="outline"
+            className={`h-auto px-3 py-1 text-base font-semibold ${risk.className}`}
           >
-            {data.risk_level} risk · {data.risk_score}/100
-          </span>
+            {risk.label} risk - {data.risk_score}/100
+          </Badge>
         </div>
       </header>
 
-      {/* Summary section */}
-      <section className="mb-6">
-        <h2 className="text-lg font-semibold text-gray-800 mb-3">Summary</h2>
-        <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-          <Dt>Date &amp; time</Dt>
-          <Dd>{new Date(data.date_time).toLocaleString("en-CA")}</Dd>
+      <Card className="text-base">
+        <CardHeader>
+          <CardTitle className="text-lg">Summary</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <dl className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2 print:grid-cols-2">
+            <Dt>Date and time (UTC)</Dt>
+            <Dd>{formatReportTime(data.date_time)}</Dd>
 
-          <Dt>Caller number</Dt>
-          <Dd>{data.caller_number}</Dd>
+            <Dt>Caller number</Dt>
+            <Dd>{data.caller_number}</Dd>
 
-          <Dt>Claimed identity</Dt>
-          <Dd>{data.claimed_identity ?? "—"}</Dd>
+            <Dt>Claimed identity</Dt>
+            <Dd>{data.claimed_identity ?? "not stated"}</Dd>
 
-          <Dt>Scam type</Dt>
-          <Dd>{data.scam_type}</Dd>
+            <Dt>Scam type</Dt>
+            <Dd>{data.scam_type}</Dd>
 
-          <Dt>Amount requested</Dt>
-          <Dd>{data.amount ?? "—"}</Dd>
+            <Dt>Amount requested</Dt>
+            <Dd>{data.amount ?? "not stated"}</Dd>
 
-          <Dt>Payment method</Dt>
-          <Dd>{data.payment_method ?? "—"}</Dd>
+            <Dt>Payment method</Dt>
+            <Dd>{data.payment_method ?? "not stated"}</Dd>
 
-          <Dt>Safe word</Dt>
-          <Dd>
-            <span
-              className={
-                data.safe_word_result === "passed"
-                  ? "text-green-700 font-medium"
-                  : data.safe_word_result === "failed"
-                    ? "text-red-700 font-medium"
-                    : "text-gray-500"
-              }
-            >
-              {data.safe_word_result}
-            </span>
-          </Dd>
+            <Dt>Safe word</Dt>
+            <Dd>
+              <span
+                className={
+                  data.safe_word_result === "passed"
+                    ? "text-green-500 print:text-black"
+                    : data.safe_word_result === "failed"
+                      ? "text-red-500 print:text-black"
+                      : "text-muted-foreground"
+                }
+              >
+                {data.safe_word_result}
+              </span>
+            </Dd>
 
-          <Dt>Callback</Dt>
-          <Dd>
-            <span
-              className={
-                data.callback_result === "denied"
-                  ? "text-red-700 font-medium"
-                  : data.callback_result === "confirmed"
-                    ? "text-green-700 font-medium"
-                    : "text-gray-500"
-              }
-            >
-              {data.callback_result}
-            </span>
-          </Dd>
-        </dl>
-        {data.summary && (
-          <p className="mt-3 text-sm text-gray-700 italic border-l-4 border-gray-300 pl-3">
-            {data.summary}
-          </p>
-        )}
-      </section>
+            <Dt>Callback</Dt>
+            <Dd>
+              <span
+                className={
+                  data.callback_result === "denied"
+                    ? "text-red-500 print:text-black"
+                    : data.callback_result === "confirmed"
+                      ? "text-green-500 print:text-black"
+                      : "text-muted-foreground"
+                }
+              >
+                {data.callback_result}
+              </span>
+            </Dd>
+          </dl>
+          {data.summary && (
+            <p className="mt-4 border-l-4 border-border pl-3 italic">{data.summary}</p>
+          )}
+        </CardContent>
+      </Card>
 
-      {/* Red flags */}
       {data.red_flags.length > 0 && (
-        <section className="mb-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-3">
-            Red flags detected
-          </h2>
-          <ul className="space-y-1">
-            {data.red_flags.map((f, i) => (
-              <li key={i} className="flex gap-2 text-sm">
-                <span className="font-mono bg-red-50 text-red-700 px-2 py-0.5 rounded text-xs">
-                  {f.flag_id}
-                </span>
-                <span className="text-gray-700">{f.quote ? `"${f.quote}"` : ""}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <Card className="text-base">
+          <CardHeader>
+            <CardTitle className="text-lg">Red flags detected</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2">
+              {data.red_flags.map((f, i) => (
+                <li key={i} className="flex flex-wrap gap-2">
+                  <Badge
+                    variant="outline"
+                    className="h-auto border-red-500 px-2 py-0.5 font-mono text-base text-red-500 print:border-black print:text-black"
+                  >
+                    {f.flag_id}
+                  </Badge>
+                  {f.quote ? <span>&quot;{f.quote}&quot;</span> : null}
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
       )}
 
-      {/* Transcript */}
-      <section className="mb-8">
-        <h2 className="text-lg font-semibold text-gray-800 mb-3">
-          Full transcript
-        </h2>
-        <ol className="space-y-2">
-          {data.transcript.map((t, i) => (
-            <li key={i} className="flex gap-3 text-sm">
-              <span
-                className={`w-20 shrink-0 font-semibold ${
-                  t.speaker === "caller" ? "text-orange-700" : "text-blue-700"
-                }`}
-              >
-                {t.speaker.toUpperCase()}
-              </span>
-              <span className="text-gray-800">{t.text}</span>
-            </li>
-          ))}
-          {data.transcript.length === 0 && (
-            <li className="text-gray-400 italic text-sm">No transcript recorded.</li>
-          )}
-        </ol>
-      </section>
+      <Card className="text-base">
+        <CardHeader>
+          <CardTitle className="text-lg">Full transcript</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ol className="space-y-2">
+            {data.transcript.map((t, i) => (
+              <li key={i} className="flex gap-3">
+                <span className="w-24 shrink-0 font-semibold">
+                  {t.speaker.toUpperCase()}
+                </span>
+                <span>{t.text}</span>
+              </li>
+            ))}
+            {data.transcript.length === 0 && (
+              <li className="italic text-muted-foreground">No transcript recorded.</li>
+            )}
+          </ol>
+        </CardContent>
+      </Card>
 
-      {/* Client-side: CAFC copy button + print button */}
+      {/* Client side: CAFC copy button + print button */}
       <ReportClient cafcText={cafcText} />
 
-      {/* Legal footer */}
-      <footer className="mt-12 pt-4 border-t text-xs text-gray-400 print:block">
+      <footer className="space-y-1 border-t pt-4 text-base text-muted-foreground">
         <p>
-          Generated by Ghostline · Report a fraud at{" "}
+          Generated by Ghostline. Report a fraud at{" "}
           <a
             href="https://antifraudcentre-centreantifraude.ca/reportincident-signalerincident-eng.htm"
             className="underline"
@@ -188,22 +205,16 @@ export default async function ReportPage({ params }: PageParams) {
             antifraudcentre-centreantifraude.ca
           </a>
         </p>
-        <p className="mt-1">
-          This report is for your records only. Nothing has been submitted automatically.
-        </p>
+        <p>This report is for your records only. Nothing has been submitted automatically.</p>
       </footer>
     </main>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Tiny layout helpers (keep the JSX above readable)
-// ---------------------------------------------------------------------------
-
 function Dt({ children }: { children: React.ReactNode }) {
-  return <dt className="text-gray-500">{children}</dt>;
+  return <dt className="text-muted-foreground">{children}</dt>;
 }
 
 function Dd({ children }: { children: React.ReactNode }) {
-  return <dd className="text-gray-900 font-medium">{children}</dd>;
+  return <dd className="font-medium">{children}</dd>;
 }

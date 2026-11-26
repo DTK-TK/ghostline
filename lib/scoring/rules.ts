@@ -138,7 +138,7 @@ export const RULES: RuleFlag[] = [
 // ---------------------------------------------------------------------------
 
 /** Longest quote stored per matched flag. */
-export const QUOTE_MAX_CHARS = 200;
+export const QUOTE_MAX_CHARS = 120;
 
 export interface RuleMatch {
   /** Flag id that fired. */

@@ -108,10 +108,10 @@ describe("scoreRules", () => {
       expect(r.matches.map((m) => m.flag)).toEqual(r.flags);
     });
 
-    it("cuts a long quote to 200 characters", () => {
+    it("cuts a long quote to 120 characters", () => {
       const long = `${"blah ".repeat(80)}gift card`;
       const q = scoreRules([long]).matches[0]!.quote;
-      expect(q.length).toBeLessThanOrEqual(200);
+      expect(q.length).toBeLessThanOrEqual(120);
     });
 
     it("uses the same turn for a same-turn pattern", () => {
@@ -119,12 +119,12 @@ describe("scoreRules", () => {
       expect(r.matches.find((m) => m.flag === "payment_method")!.quote).toBe("wire the money tonight");
     });
 
-    it("property: every quote is non-empty, at most 200 chars, and flags match", () => {
+    it("property: every quote is non-empty, at most 120 chars, and flags match", () => {
       fc.assert(
         fc.property(fc.array(fc.string({ maxLength: 300 }), { maxLength: 5 }), (turns) => {
           const r = scoreRules(turns);
           expect(r.matches.map((m) => m.flag)).toEqual(r.flags);
-          for (const m of r.matches) expect(m.quote.length).toBeLessThanOrEqual(200);
+          for (const m of r.matches) expect(m.quote.length).toBeLessThanOrEqual(120);
         }),
       );
     });

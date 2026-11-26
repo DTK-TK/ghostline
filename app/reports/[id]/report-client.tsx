@@ -46,7 +46,7 @@ export default function ReportClient({ cafcText }: { cafcText: string }) {
         value={cafcText}
         rows={14}
         aria-label="CAFC report text"
-        className="w-full rounded-lg border border-zinc-700 bg-zinc-900 p-3 font-mono text-base text-zinc-100 print:border-gray-400 print:bg-white print:text-black"
+        className="w-full rounded-lg border border-input bg-card p-3 font-mono text-base text-card-foreground"
       />
       <div className="mt-3 flex flex-wrap gap-3 print:hidden">
         <Button type="button" onClick={handleCopy} className="text-base">

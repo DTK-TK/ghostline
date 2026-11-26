@@ -56,6 +56,24 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* Print is white with black text: remap the theme tokens, so every
+   component that uses them turns light without per-element overrides. */
+@media print {
+  :root {
+    --background: oklch(1 0 0);
+    --foreground: oklch(0 0 0);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0 0 0);
+    --muted: oklch(0.95 0 0);
+    --muted-foreground: oklch(0.3 0 0);
+    --border: oklch(0 0 0 / 35%);
+    --input: oklch(0 0 0 / 35%);
+  }
+  html {
+    color-scheme: light;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

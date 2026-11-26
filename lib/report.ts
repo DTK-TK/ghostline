@@ -14,9 +14,10 @@
  */
 
 import {
-  getCallBySid,
+  adminDb,
+  FraudReportSchema,
+  getCallById,
   getCallEvents,
-  getHousehold,
   getFraudReport,
   createFraudReport,
 } from "@/lib/db";
@@ -145,20 +146,8 @@ export async function buildAndStoreReport(callId: string): Promise<FraudReportRo
   if (existing) return existing;
 
   // Load call + events.
-  const { data: callData, error: callError } = await (async () => {
-    const { adminDb } = await import("@/lib/db");
-    const { data, error } = await adminDb()
-      .from("calls")
-      .select("*")
-      .eq("id", callId)
-      .maybeSingle();
-    return { data, error };
-  })();
-  if (callError) throw callError;
-  if (!callData) throw new Error(`Call not found: ${callId}`);
-
-  const { CallSchema } = await import("@/lib/db");
-  const call = CallSchema.parse(callData);
+  const call = await getCallById(callId);
+  if (!call) throw new Error(`Call not found: ${callId}`);
 
   const events = await getCallEvents(callId);
 
@@ -183,7 +172,25 @@ export async function buildAndStoreReport(callId: string): Promise<FraudReportRo
     is_simulated:     call.is_simulated,
   });
 
-  return createFraudReport({ call_id: callId, report: report as Record<string, unknown> });
+  try {
+    return await createFraudReport({ call_id: callId, report: report as Record<string, unknown> });
+  } catch (err) {
+    // A concurrent or repeated build lost the race on the UNIQUE(call_id)
+    // index: the report already exists, so return it.
+    if (isUniqueViolation(err)) {
+      const winner = await getFraudReport(callId);
+      if (winner) return winner;
+    }
+    throw err;
+  }
+}
+
+function isUniqueViolation(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    (err as { code?: unknown }).code === "23505"
+  );
 }
 
 /**
@@ -193,7 +200,6 @@ export async function loadReport(reportId: string): Promise<{
   row: FraudReportRow;
   data: FraudReportData;
 } | null> {
-  const { adminDb, FraudReportSchema } = await import("@/lib/db");
   const { data, error } = await adminDb()
     .from("fraud_reports")
     .select("*")
