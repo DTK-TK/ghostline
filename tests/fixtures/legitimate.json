@@ -1,0 +1,140 @@
+[
+  {
+    "id": "legit-doctor-1",
+    "category": "doctors_office",
+    "caller": [
+      "Hello, this is Maple Clinic calling for Mrs. Whitfield.",
+      "We are confirming your appointment on Thursday at ten. Please call us back if you need to change it."
+    ],
+    "expectedLevel": "low"
+  },
+  {
+    "id": "legit-doctor-2",
+    "category": "doctors_office",
+    "caller": [
+      "Hi, this is Dr. Patel's office. Your blood test results are ready.",
+      "You can pick up the report at the front desk any time this week."
+    ],
+    "expectedLevel": "low"
+  },
+  {
+    "id": "legit-doctor-3",
+    "category": "doctors_office",
+    "caller": [
+      "Good afternoon, this is Riverside Hospital's outpatient department.",
+      "We need to move your physiotherapy visit to next Monday. Please call us when it suits you."
+    ],
+    "expectedLevel": "low"
+  },
+  {
+    "id": "legit-pharmacy-1",
+    "category": "pharmacy",
+    "caller": [
+      "Hello, this is Corner Pharmacy. Your prescription is ready for pickup.",
+      "We are open until six this evening."
+    ],
+    "expectedLevel": "low"
+  },
+  {
+    "id": "legit-pharmacy-2",
+    "category": "pharmacy",
+    "caller": [
+      "Hi, it's Sam from Lakeview Pharmacy. Your refill is due next week.",
+      "Press one or call us back if you would like us to prepare it."
+    ],
+    "expectedLevel": "low"
+  },
+  {
+    "id": "legit-pharmacy-3",
+    "category": "pharmacy",
+    "caller": [
+      "This is Greenleaf Pharmacy calling about Mr. Okafor's medication.",
+      "The pharmacist would like to go over a new dosage with him. He can stop by any time."
+    ],
+    "expectedLevel": "low"
+  },
+  {
+    "id": "legit-delivery-1",
+    "category": "delivery",
+    "caller": [
+      "Hello, I'm a delivery driver with a package for Mrs. Whitfield.",
+      "I'm at the front door but nobody answered. I'll leave it on the porch."
+    ],
+    "expectedLevel": "low"
+  },
+  {
+    "id": "legit-delivery-2",
+    "category": "delivery",
+    "caller": [
+      "Hi, this is Fresh Basket grocery delivery.",
+      "We'll arrive between two and three o'clock with your order. Please leave the porch light on."
+    ],
+    "expectedLevel": "low"
+  },
+  {
+    "id": "legit-delivery-3",
+    "category": "delivery",
+    "caller": [
+      "Good morning, calling from the courier depot about a parcel for Mr. Okafor.",
+      "The driver missed you. We can redeliver tomorrow morning."
+    ],
+    "expectedLevel": "low"
+  },
+  {
+    "id": "legit-grandchild-1",
+    "category": "real_grandchild",
+    "caller": [
+      "Hi Grandma, it's Emma. I'm coming to visit on Saturday.",
+      "The safe word is correct, it's what you told me. Do you need anything from the store?"
+    ],
+    "safeWordCorrect": true,
+    "expectedLevel": "low"
+  },
+  {
+    "id": "legit-grandchild-2",
+    "category": "real_grandchild",
+    "caller": [
+      "Grandpa, it's Noah. My car had a flat tire and it was a bit of an emergency, but I'm fine.",
+      "I'm at the garage now. I'll call you tonight to tell you about it."
+    ],
+    "safeWordCorrect": true,
+    "expectedLevel": "low"
+  },
+  {
+    "id": "legit-grandchild-3",
+    "category": "real_grandchild",
+    "caller": [
+      "Hi Nana, it's Sophie. I just got home from the hospital where I volunteer.",
+      "I'd love to see you for lunch. Is Sunday good?"
+    ],
+    "safeWordCorrect": true,
+    "expectedLevel": "low"
+  },
+  {
+    "id": "legit-neighbour-1",
+    "category": "neighbour",
+    "caller": [
+      "Hi Margaret, it's Bob from next door.",
+      "Your newspaper is still on the lawn. I'll bring it up to your porch."
+    ],
+    "expectedLevel": "low"
+  },
+  {
+    "id": "legit-neighbour-2",
+    "category": "neighbour",
+    "caller": [
+      "Hello, it's Linda from across the street.",
+      "I'm baking tonight and made too many cookies. Can I drop some by this afternoon?"
+    ],
+    "expectedLevel": "low"
+  },
+  {
+    "id": "legit-neighbour-3",
+    "category": "neighbour",
+    "caller": [
+      "Hi, it's Frank next door. The city is fixing the road tomorrow.",
+      "You may want to move your car off the street. Let me know if you need a hand."
+    ],
+    "expectedLevel": "low"
+  }
+]

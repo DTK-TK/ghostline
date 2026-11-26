@@ -64,5 +64,14 @@ export async function callGemini(
   inTimeWaster = false,
 ): Promise<GeminiResponse> {
   const context: PersonaContext = { familyName, inTimeWaster };
-  return getAI().generateTurn(history, latestSpeech, context);
+  // getAI() / new GeminiAI() throw a plain Error when GEMINI_API_KEY is
+  // missing. Convert that into AIUnavailableError so engine() falls back to
+  // rules-only scoring instead of dropping the call.
+  let provider: ReturnType<typeof getAI>;
+  try {
+    provider = getAI();
+  } catch (err) {
+    throw err instanceof AIUnavailableError ? err : new AIUnavailableError(err);
+  }
+  return provider.generateTurn(history, latestSpeech, context);
 }

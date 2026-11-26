@@ -1,0 +1,145 @@
+[
+    {
+        "id":  "scam-grandparent-1",
+        "category":  "grandparent",
+        "caller":  [
+                       "Grandma it\u0027s me, I\u0027m in trouble. I was in an accident and I\u0027m in jail.",
+                       "I need bail money right now. Please buy gift cards and don\u0027t tell mom or dad."
+                   ],
+        "expectedLevel":  "high"
+    },
+    {
+        "id":  "scam-grandparent-2",
+        "category":  "grandparent",
+        "caller":  [
+                       "Hi Grandpa, it\u0027s Tyler. I got arrested last night and I need help.",
+                       "My lawyer says you must send a wire transfer immediately. Please keep this between us."
+                   ],
+        "expectedLevel":  "high"
+    },
+    {
+        "id":  "scam-grandparent-3",
+        "category":  "grandparent",
+        "caller":  [
+                       "Nana, I\u0027m in the hospital after a car accident.",
+                       "I need you to send bitcoin tonight. A courier will pick it up from your door, and don\u0027t tell anyone."
+                   ],
+        "expectedLevel":  "high"
+    },
+    {
+        "id":  "scam-cra-1",
+        "category":  "cra",
+        "caller":  [
+                       "This is the Canada Revenue Agency. There is an arrest warrant in your name.",
+                       "You must pay your tax debt immediately with gift cards or the police will come."
+                   ],
+        "expectedLevel":  "high"
+    },
+    {
+        "id":  "scam-cra-2",
+        "category":  "cra",
+        "caller":  [
+                       "This is Officer Daniels from the CRA. You owe back taxes and a court date is set.",
+                       "Pay today by bitcoin. Do not call anyone about this matter."
+                   ],
+        "expectedLevel":  "high"
+    },
+    {
+        "id":  "scam-cra-3",
+        "category":  "cra",
+        "caller":  [
+                       "This is the IRS calling about your unpaid taxes. A judge will issue a warrant.",
+                       "Buy Google Play cards right now and read me the numbers."
+                   ],
+        "expectedLevel":  "high"
+    },
+    {
+        "id":  "scam-bank-1",
+        "category":  "bank",
+        "caller":  [
+                       "This is the bank fraud department. Someone is draining your account.",
+                       "Move your savings immediately by wire transfer to a safe account. Don\u0027t tell the teller."
+                   ],
+        "expectedLevel":  "high"
+    },
+    {
+        "id":  "scam-bank-2",
+        "category":  "bank",
+        "caller":  [
+                       "Hello, this is Visa security. We saw a suspicious charge on your card.",
+                       "I need your card number and PIN right now to cancel it."
+                   ],
+        "expectedLevel":  "high",
+        "knownGap":  true,
+        "reason":  "Rules have no signal for requesting card number/PIN; only authority (Visa security) and urgency fire, score 50 (MEDIUM)."
+    },
+    {
+        "id":  "scam-bank-3",
+        "category":  "bank",
+        "caller":  [
+                       "I\u0027m calling from your bank about unusual activity on your account.",
+                       "To protect your money, withdraw cash and give it to our courier today. Please keep this secret."
+                   ],
+        "expectedLevel":  "high",
+        "knownGap":  true,
+        "reason":  "Bare \"bank\" is not an authority pattern and \"give it to our courier\" matches no payment_method pattern; only secrecy fires, score 30 (LOW). See task 13."
+    },
+    {
+        "id":  "scam-tech-1",
+        "category":  "tech_support",
+        "caller":  [
+                       "This is Microsoft support. Your computer has a virus and is sending out your data.",
+                       "Please download AnyDesk and give me the code so I can fix it."
+                   ],
+        "expectedLevel":  "high",
+        "knownGap":  true,
+        "reason":  "Authority (Microsoft support) + remote_access (AnyDesk) total 60 (MEDIUM); a remote-access scam with no payment or urgency stays below HIGH."
+    },
+    {
+        "id":  "scam-tech-2",
+        "category":  "tech_support",
+        "caller":  [
+                       "Hello, I\u0027m calling from Microsoft tech support about errors on your computer.",
+                       "Install our program and give me remote access, then pay the fee with iTunes cards."
+                   ],
+        "expectedLevel":  "high"
+    },
+    {
+        "id":  "scam-tech-3",
+        "category":  "tech_support",
+        "caller":  [
+                       "Your internet router has been hacked. I am from the support team.",
+                       "Open your computer and install TeamViewer. Do it now before hackers steal everything."
+                   ],
+        "expectedLevel":  "high",
+        "knownGap":  true,
+        "reason":  "\"Do it now\" does not match urgency (needs \"right now\"/\"immediately\") and an unnamed support team is not authority; only remote_access fires, score 30 (LOW)."
+    },
+    {
+        "id":  "scam-romance-1",
+        "category":  "romance",
+        "caller":  [
+                       "Hello my dear Margaret, it is Daniel from the dating site. I am stuck overseas and my wallet was stolen.",
+                       "Please send money by Western Union tonight. I will pay you back, just between us."
+                   ],
+        "expectedLevel":  "high"
+    },
+    {
+        "id":  "scam-romance-2",
+        "category":  "romance",
+        "caller":  [
+                       "Darling, it\u0027s James. I was in an accident abroad and the hospital will not release me.",
+                       "I need you to send bitcoin immediately. Please don\u0027t tell your children."
+                   ],
+        "expectedLevel":  "high"
+    },
+    {
+        "id":  "scam-romance-3",
+        "category":  "romance",
+        "caller":  [
+                       "My love, I want to come and see you. I only need money for the plane ticket.",
+                       "Buy gift cards and send me the codes, and keep this just between us."
+                   ],
+        "expectedLevel":  "high"
+    }
+]

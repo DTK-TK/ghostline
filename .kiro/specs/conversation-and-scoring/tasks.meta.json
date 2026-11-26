@@ -1,0 +1,343 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "**1. Wire `/api/voice/turn` to the real engine.**": [
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795685685320
+      },
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795685691868
+      },
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795685746428
+      }
+    ],
+    "**6. DB-backed silence count.** Replace `computeSilenceCount` in the": [
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795685685450
+      },
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795685750276
+      },
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795685836882
+      }
+    ],
+    "**9. Fallback on a missing key.** `getAI()` or `GeminiAI` failing for a": [
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795685685591
+      },
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795685839469
+      },
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795685877665
+      }
+    ],
+    "**11. Remove the opening line from the Gemini prompt**": [
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795685685696
+      },
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795685879564
+      },
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795685912296
+      }
+    ],
+    "**8. Persist Ghostline's replies** as `transcript` events with": [
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795685685815
+      },
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795685914001
+      },
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795685964869
+      }
+    ],
+    "**10. Reply guard.** Add `lib/scoring/reply-guard.ts` (`validateReply`)": [
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795685685944
+      },
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795685966768
+      },
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795686010924
+      }
+    ],
+    "**2. Pass `safeWordCorrect` and `callbackDenied` from `call_events`.**": [
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795685686059
+      },
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795686012906
+      },
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795686054222
+      }
+    ],
+    "**14. `safe_word_fail` points.** Add 50 per `safe_word_attempt` with": [
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795685686164
+      },
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795686056395
+      },
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795686100348
+      }
+    ],
+    "**12. Filter AI flags to the known ids** before scoring or writing": [
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795685686268
+      },
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795686102463
+      },
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795686155860
+      }
+    ],
+    "**15. MEDIUM takes a message and alerts.** Implement R7 for MEDIUM": [
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795685686390
+      },
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795686157834
+      },
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795686238006
+      }
+    ],
+    "**3. Vitest mock for Gemini.**": [
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795685686494
+      },
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795686239861
+      },
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795686291192
+      }
+    ],
+    "**4. 30 fixture transcripts in `tests/fixtures`.**": [
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795685686604
+      },
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795686292763
+      },
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795686374034
+      }
+    ],
+    "**5. Property-based tests with fast-check** in": [
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795685686714
+      },
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795686375949
+      },
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795686405550
+      }
+    ],
+    "**16. Engine tests.** `tests/conversation.test.ts` with `lib/db`": [
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795685686829
+      },
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795686407320
+      }
+    ],
+    "**17. Rules, combine and AI unit tests.** `tests/scoring-rules.test.ts`,": [
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795685686946
+      }
+    ],
+    "**7. Stop duplicating the latest utterance.** The route already stores": [
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795685687075
+      }
+    ],
+    "**13. Widen the rules to every `scam-rules.md` signal** (bare \"bank\",": [
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795685687179
+      }
+    ],
+    "**R1** The Gemini prompt does not repeat it. See task 11.": [
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795685687279
+      }
+    ],
+    "**R2** Reply rules enforced in code. See task 10. The prompt contains": [
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795685687384
+      }
+    ],
+    "**R3** Rules table. `scoreRules` exists with correct weights but is": [
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795685687481
+      }
+    ],
+    "**R3** `safe_word_fail`. See task 14.": [
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795685687583
+      }
+    ],
+    "**R4** AI layer. Code exists in `lib/providers/ai.ts` (model, JSON mode,": [
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795685687681
+      }
+    ],
+    "**R5** `combineScores` is correct in code but is reached live only after": [
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795685687780
+      }
+    ],
+    "**R6** Fallback. Implemented in `engine()` for `AIUnavailableError`": [
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795685687896
+      }
+    ],
+    "**R7** `computeNextState` exists. Not live (task 1). MEDIUM behaviour": [
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795685687997
+      }
+    ],
+    "**R8** Red-flag dedup and call updates exist in `engine()`, not live.": [
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795685688102
+      }
+    ],
+    "**R9** History from `call_events` exists in `engine()`, not live.": [
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795685688218
+      }
+    ],
+    "**R10** 6 s abort exists in the provider. Engine total is unmeasured.": [
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795685688362
+      }
+    ],
+    "**R11** Test requirements. See tasks 3, 4, 5, 16, 17.": [
+      {
+        "executionId": "72a37fbb-ea08-4f69-bdfd-c97a8082a44e",
+        "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
+        "timestamp": 1795685688485
+      }
+    ]
+  }
+}

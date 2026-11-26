@@ -6,10 +6,11 @@ const db = vi.hoisted(() => ({
   getHousehold: vi.fn(),
   updateCall: vi.fn(),
   appendEvent: vi.fn(),
+  getCallEvents: vi.fn(),
 }));
-const engine = vi.hoisted(() => ({ runTurn: vi.fn() }));
+const engine = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/db", () => db);
-vi.mock("@/lib/conversation-engine", () => engine);
+vi.mock("@/lib/conversation", () => ({ engine }));
 
 import { POST } from "@/app/api/voice/turn/route";
 
@@ -20,7 +21,7 @@ function turn(params: Record<string, string> = SPEECH) {
 }
 
 function engineReturns(nextState: string, level = "low", score = 0, reply = "Thank you. Could you tell me more?") {
-  engine.runTurn.mockResolvedValue({ reply, nextState, riskUpdate: { score, level } });
+  engine.mockResolvedValue({ reply, nextState, riskUpdate: { score, level } });
 }
 
 beforeEach(() => {
@@ -32,6 +33,7 @@ beforeEach(() => {
   db.getHousehold.mockResolvedValue(householdFixture());
   db.updateCall.mockResolvedValue({});
   db.appendEvent.mockResolvedValue({});
+  db.getCallEvents.mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -146,15 +148,38 @@ describe("POST /api/voice/turn: persistence", () => {
 });
 
 describe("POST /api/voice/turn: silence", () => {
-  it("empty speech while screening: says goodbye, records, and marks the call dropped", async () => {
-    const res = await turn({ ...SPEECH, SpeechResult: "" });
-    const xml = await res.text();
+  const ev = (text: string, speaker = "caller") => ({
+    type: "transcript",
+    payload: { type: "transcript", text, speaker },
+  });
+
+  it("one empty turn: replies and keeps gathering", async () => {
+    db.getCallEvents.mockResolvedValue([ev("Hello, who is this?"), ev("Please say your name.", "system"), ev("")]);
+    engineReturns("screening", "low", 0, "Are you still there?");
+
+    const xml = await (await turn({ ...SPEECH, SpeechResult: "" })).text();
+
+    expect(parseTwiml(xml)).toEqual(["Gather", "Say", "Redirect"]);
+    expect(engine).toHaveBeenCalled();
+    expect(db.updateCall).not.toHaveBeenCalledWith("CA_TEST_0001", { state: "completed", outcome: "dropped" });
+  });
+
+  it("two consecutive empty turns: says goodbye, records, and marks the call dropped", async () => {
+    db.getCallEvents.mockResolvedValue([ev(""), ev("Are you still there?", "system"), ev("")]);
+
+    const xml = await (await turn({ ...SPEECH, SpeechResult: "" })).text();
 
     expect(parseTwiml(xml)).toEqual(["Say", "Record"]);
-    expect(engine.runTurn).not.toHaveBeenCalled();
+    expect(engine).not.toHaveBeenCalled();
     expect(db.updateCall).toHaveBeenCalledWith("CA_TEST_0001", { state: "completed", outcome: "dropped" });
   });
 
+  it("an empty turn separated by speech does not count as consecutive", async () => {
+    db.getCallEvents.mockResolvedValue([ev(""), ev("I am calling about the appointment"), ev("")]);
+    engineReturns("screening");
+
+    expect(parseTwiml(await (await turn({ ...SPEECH, SpeechResult: "" })).text())).toEqual(["Gather", "Say", "Redirect"]);
+  });
   it("still stores the empty turn as a transcript event", async () => {
     await turn({ ...SPEECH, SpeechResult: "" });
 
@@ -169,11 +194,11 @@ describe("POST /api/voice/turn: failures", () => {
     db.getCallBySid.mockResolvedValue(null);
 
     expect(parseTwiml(await (await turn()).text())).toEqual(["Say", "Record"]);
-    expect(engine.runTurn).not.toHaveBeenCalled();
+    expect(engine).not.toHaveBeenCalled();
   });
 
   it("engine error: Say + Record fallback, not a 500", async () => {
-    engine.runTurn.mockRejectedValue(new Error("boom"));
+    engine.mockRejectedValue(new Error("boom"));
 
     const res = await turn();
 

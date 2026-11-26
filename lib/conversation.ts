@@ -5,7 +5,7 @@
  * loads full history from call_events, runs both scoring layers, writes
  * back to the DB, and returns the next reply + state.
  *
- * This module replaces the stub in lib/conversation-engine.ts and fulfils
+ * This module fulfils
  * the contract expected by app/api/voice/turn/route.ts.
  *
  * Fallback policy:
@@ -26,9 +26,12 @@ import { scoreRules } from "@/lib/scoring/rules";
 import { callGemini, GeminiUnavailableError } from "@/lib/scoring/ai";
 import type { ConversationTurn } from "@/lib/scoring/ai";
 import { combineScores, scoreToLevel } from "@/lib/scoring/combine";
+import { validateReply } from "@/lib/scoring/reply-guard";
+import { filterKnownFlags } from "@/lib/scoring/known-flags";
+import { sendAlerts } from "@/lib/alerts";
 
 // ---------------------------------------------------------------------------
-// Public contract — matches conversation-engine.ts TurnInput / TurnOutput
+// Public contract �?matches conversation-engine.ts TurnInput / TurnOutput
 // ---------------------------------------------------------------------------
 
 export interface EngineInput {
@@ -53,6 +56,11 @@ const FALLBACK_REPLIES: Record<string, string> = {
   medium: "I need a moment. Could you tell me your name and reason for calling?",
   high:   "I'm not able to connect this call. Goodbye.",
 };
+
+const SAFE_WORD_FAIL_POINTS = 50;
+
+/** MEDIUM calls screen for this many caller turns, then take a message. */
+const MEDIUM_SCREEN_TURNS = 3;
 
 function fallbackReply(level: RiskLevel): string {
   return FALLBACK_REPLIES[level] ?? FALLBACK_REPLIES["low"]!;
@@ -87,13 +95,14 @@ function buildHistory(events: CallEventRow[]): ConversationTurn[] {
  * Determine the next call state from the combined risk level, the AI output,
  * and whether the caller claims to be family.
  *
- * The engine never moves a call backwards — once verified or blocked it stays.
+ * The engine never moves a call backwards �?once verified or blocked it stays.
  */
 function computeNextState(
   current: CallState,
   level: RiskLevel,
   claimsFamily: boolean,
   timeWasterEnabled: boolean,
+  callerTurns: number,
 ): CallState {
   // Terminal states don't transition.
   if (
@@ -110,11 +119,11 @@ function computeNextState(
   }
 
   if (level === "medium") {
-    // Keep screening but don't connect yet.
-    return "screening";
+    // Screen for up to MEDIUM_SCREEN_TURNS caller turns, then take a message.
+    return callerTurns >= MEDIUM_SCREEN_TURNS ? "completed" : "screening";
   }
 
-  // LOW risk — if the caller says they're family, stay in screening for the
+  // LOW risk �?if the caller says they're family, stay in screening for the
   // safe-word challenge; otherwise connect.
   if (claimsFamily) {
     return "screening";
@@ -168,7 +177,7 @@ export async function engine(input: EngineInput): Promise<EngineOutput> {
   // 5. Build conversation history for Gemini.
   const history = buildHistory(events);
 
-  // 6. AI layer — with fallback on GeminiUnavailableError.
+  // 6. AI layer �?with fallback on GeminiUnavailableError.
   let geminiResult: Awaited<ReturnType<typeof callGemini>> | null = null;
   let usedFallback = false;
 
@@ -185,15 +194,36 @@ export async function engine(input: EngineInput): Promise<EngineOutput> {
 
   // 7. Combine scores.
   const aiScore = geminiResult?.risk_score ?? 0;
-  const aiFlagsIds = geminiResult?.flags ?? [];
-  const allFlagIds = Array.from(new Set([...rulesResult.flags, ...aiFlagsIds]));
+  const aiFlagsIds = filterKnownFlags(geminiResult?.flags ?? []);
+
+  // Each failed safe-word attempt adds 50 to the rules score (scam-rules.md).
+  // The flag goes through the same priorFlagIds dedup as every other flag, so
+  // an existing safe_word_fail red_flag event is never written twice.
+  const failedAttempts = events.filter(
+    (e) => e.type === "safe_word_attempt" && e.payload["matched"] === false,
+  ).length;
+  const rulesScore = rulesResult.score + SAFE_WORD_FAIL_POINTS * failedAttempts;
+  const allFlagIds = Array.from(
+    new Set([
+      ...rulesResult.flags,
+      ...(failedAttempts > 0 ? ["safe_word_fail"] : []),
+      ...aiFlagsIds,
+    ]),
+  );
+
+  const safeWordCorrect = events.some(
+    (e) => e.type === "safe_word_attempt" && e.payload["matched"] === true,
+  );
+  const callbackDenied = events.some(
+    (e) => e.type === "callback_result" && e.payload["outcome"] === "denied",
+  );
 
   const combined = combineScores({
-    rulesScore: rulesResult.score,
+    rulesScore,
     aiScore,
     allFlags: allFlagIds,
-    safeWordCorrect: false, // safe-word check is handled by the turn route
-    callbackDenied: false,  // callback result is handled separately
+    safeWordCorrect,
+    callbackDenied,
     priorScore: currentRiskScore,
   });
 
@@ -219,19 +249,63 @@ export async function engine(input: EngineInput): Promise<EngineOutput> {
     summary: geminiResult?.summary ?? call.summary ?? undefined,
   });
 
-  // 10. Determine next state.
+  // 10. Determine next state. The route stores the current caller turn
+  // before calling engine(), so events already include it.
+  const callerTurnCount = events.filter(
+    (e) =>
+      e.type === "transcript" &&
+      e.payload["speaker"] === "caller" &&
+      typeof e.payload["text"] === "string" &&
+      e.payload["text"].trim() !== "",
+  ).length;
   const claimsFamily = geminiResult?.claims_family ?? false;
   const nextState = computeNextState(
     currentState,
     combined.level,
     claimsFamily,
     household.time_waster_enabled,
+    callerTurnCount,
   );
 
+  // 10b. MEDIUM message taken: alert the family once. Fires only on the
+  // transition into "completed"; sendAlerts is also idempotent per recipient.
+  if (
+    nextState === "completed" &&
+    currentState !== "completed" &&
+    combined.level === "medium"
+  ) {
+    const callbackOutcome = events.find((e) => e.type === "callback_result")?.payload["outcome"];
+    try {
+      await sendAlerts({
+        call,
+        level: combined.level,
+        claimedIdentity: geminiResult?.claimed_identity ?? call.claimed_identity ?? null,
+        requestedAmount: null,
+        paymentMethod: null,
+        safeWordResult: safeWordCorrect ? "passed" : failedAttempts > 0 ? "failed" : "not asked",
+        callbackResult:
+          callbackOutcome === "denied" || callbackOutcome === "confirmed" || callbackOutcome === "no_answer"
+            ? callbackOutcome
+            : "not initiated",
+      });
+    } catch (err) {
+      // Never drop the call because an SMS failed.
+      console.error("[conversation] alert failed:", err instanceof Error ? err.message : "unknown");
+    }
+  }
+
   // 11. Build reply.
-  const reply = usedFallback
-    ? fallbackReply(combined.level)
-    : (geminiResult?.reply ?? fallbackReply(combined.level));
+  const reply =
+    (!usedFallback && geminiResult ? validateReply(geminiResult.reply) : null) ??
+    fallbackReply(combined.level);
+
+  // 12. Persist Ghostline's reply so later turns see it in history.
+  // Scoring and silence counting only read speaker === "caller".
+  await appendEvent({
+    call_id: call.id,
+    type: "transcript",
+    payload: { type: "transcript", text: reply, speaker: "system" },
+  });
 
   return {
     reply,

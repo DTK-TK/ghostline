@@ -15,6 +15,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
 import { scoreRules, type RulesResult } from "@/lib/scoring/rules";
+import { filterKnownFlags } from "@/lib/scoring/known-flags";
 
 // ---------------------------------------------------------------------------
 // Shared schema (from conversation-and-scoring spec)
@@ -23,7 +24,7 @@ import { scoreRules, type RulesResult } from "@/lib/scoring/rules";
 export const AITurnResponseSchema = z.object({
   reply: z.string().min(1),
   risk_score: z.number().int().min(0).max(100),
-  flags: z.array(z.string()),
+  flags: z.array(z.string()).transform(filterKnownFlags),
   claimed_identity: z.string().nullable(),
   claims_family: z.boolean(),
   requested_amount: z.string().nullable(),
@@ -233,7 +234,7 @@ You are Ghostline, the AI screening assistant for the ${familyName} family's tel
 You are speaking to an unknown caller BEFORE connecting them to the senior resident.
 
 PERSONA RULES (follow strictly):
-- Opening line (first turn only): "You've reached the ${familyName} residence. This call is screened by Ghostline. Please say your name and why you're calling."
+- The greeting is already spoken before you are called. Never repeat it or introduce the call again.
 - Patient, warm, short sentences — maximum 2 sentences per turn, under 25 words total.
 - Never sarcastic. Never accuse anyone of being a scammer.
 - If you cannot connect the call: say "I'm not able to connect this call."
@@ -256,6 +257,7 @@ TIME-WASTER MODE IS ACTIVE. You are now a slow, friendly grandmother.
   prompt += `\
 SCAM FLAG IDs (use exactly these strings in the "flags" array):
   payment_method, secrecy, authority, emergency_story, urgency, remote_access
+  (any other flag string is discarded)
 
 NEXT-STATE GUIDANCE embedded in reply:
 - If claims_family is true → ask for verification (do NOT reveal the safe word exists).

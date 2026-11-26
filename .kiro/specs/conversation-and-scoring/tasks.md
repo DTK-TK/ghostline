@@ -1,4 +1,4 @@
-# Tasks: conversation-and-scoring
+ # Tasks: conversation-and-scoring
 
 Status was checked by reading the code and imports, not from earlier notes.
 
@@ -16,7 +16,7 @@ Re-planned for the hackathon MVP due Dec 4, 2026. Every task is kept. Decisions 
 
 Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engine, safe word and callback checks, the alert and fraud report, and the dashboard to watch it.
 
-- [ ] **1. Wire `/api/voice/turn` to the real engine.**
+- [x] **1. Wire `/api/voice/turn` to the real engine.**
   In `app/api/voice/turn/route.ts` import `engine` from `@/lib/conversation`
   (destructure the same `{ reply, nextState, riskUpdate }`). Delete
   `lib/conversation-engine.ts`. Update `tests/voice-turn.test.ts` to
@@ -28,7 +28,7 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
     you're calling?"._
   - _MVP, build item 1: A real call must reach the real engine, not the stub._
 
-- [ ] **6. DB-backed silence count.** Replace `computeSilenceCount` in the
+- [x] **6. DB-backed silence count.** Replace `computeSilenceCount` in the
   turn route (empty speech in `screening` currently ends the call at once)
   with a count of consecutive empty caller transcripts in `call_events`.
   Move it out of the route file.
@@ -37,7 +37,7 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
   - _MVP, build item 1: One silent turn must not hang up the caller._
   - _Re-plan: Decision: one empty turn replies and keeps gathering; hang up after two consecutive empty turns._
 
-- [ ] **9. Fallback on a missing key.** `getAI()` or `GeminiAI` failing for a
+- [x] **9. Fallback on a missing key.** `getAI()` or `GeminiAI` failing for a
   missing `GEMINI_API_KEY` must lead to the rules-only fallback, not a
   rethrow. Catch it in `callGemini` and raise `AIUnavailableError`.
   - _Proof: `tests/conversation.test.ts`: unset key, `engine()` returns a
@@ -45,20 +45,20 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
     output contains no key._
   - _MVP, build item 1: A missing or failing Gemini key must fall back, not drop the call._
 
-- [ ] **11. Remove the opening line from the Gemini prompt**
+- [x] **11. Remove the opening line from the Gemini prompt**
   (`buildSystemPrompt` in `lib/providers/ai.ts`). The greeting is spoken by
   TwiML.
   - _Proof: `tests/scoring-ai.test.ts`: captured `systemInstruction` does not
     contain "This call is screened by Ghostline"._
   - _MVP, build item 1: The greeting is spoken by TwiML; the prompt must not repeat it._
 
-- [ ] **8. Persist Ghostline's replies** as `transcript` events with
+- [x] **8. Persist Ghostline's replies** as `transcript` events with
   `speaker: "system"` inside `engine()`.
   - _Proof: `tests/conversation.test.ts`: after a turn, `appendEvent` is called
     with a system transcript; a second turn's history includes it._
   - _MVP, build item 2: The safe-word challenge phase is read from stored system replies._
 
-- [ ] **10. Reply guard.** Add `lib/scoring/reply-guard.ts` (`validateReply`)
+- [x] **10. Reply guard.** Add `lib/scoring/reply-guard.ts` (`validateReply`)
   and use it in `engine()`: more than 2 sentences, 25 or more words,
   accusatory words, or a repeated opening line fall back to the scripted
   band line.
@@ -66,7 +66,7 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
     case where the mocked Gemini returns a 40-word reply._
   - _MVP, build item 2: Enforces the voice rules (2 sentences, under 25 words, never accuse)._
 
-- [ ] **2. Pass `safeWordCorrect` and `callbackDenied` from `call_events`.**
+- [x] **2. Pass `safeWordCorrect` and `callbackDenied` from `call_events`.**
   In `engine()`, set `safeWordCorrect` from any `safe_word_attempt` with
   `matched: true`, and `callbackDenied` from any `callback_result` with
   `outcome: "denied"`. Remove both hardcoded `false` values.
@@ -76,20 +76,20 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
   - _MVP, build item 6: Scoring must use the safe word and callback results._
   - _Re-plan: Needed by safe-word-and-callback task 7; the verified-state proof there finishes here._
 
-- [ ] **14. `safe_word_fail` points.** Add 50 per `safe_word_attempt` with
+- [x] **14. `safe_word_fail` points.** Add 50 per `safe_word_attempt` with
   `matched: false` to the rules score in `engine()`.
   - _Proof: `tests/conversation.test.ts`: two failed attempts add 100 and the
     level is `high`. Coordinate with the safe-word-and-callback spec, which
     writes the events._
   - _MVP, build item 5: Failed safe-word attempts must raise the score._
 
-- [ ] **12. Filter AI flags to the known ids** before scoring or writing
+- [x] **12. Filter AI flags to the known ids** before scoring or writing
   `red_flag` events.
   - _Proof: `tests/scoring-ai.test.ts` and `tests/conversation.test.ts`: a
     mocked response with flag `"made_up"` produces no `red_flag` event._
   - _MVP, build item 8: Only known flag ids may become stored red-flag evidence._
 
-- [ ] **15. MEDIUM takes a message and alerts.** Implement R7 for MEDIUM
+- [x] **15. MEDIUM takes a message and alerts.** Implement R7 for MEDIUM
   (state `completed` with the message TwiML, and a `sendAlerts` call from the
   alerts-and-report spec). Settle the open decision in design.md first.
   - _Proof: `tests/conversation.test.ts`: a 40 to 69 score ends in message
@@ -98,7 +98,7 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
   - _MVP, build item 8: MEDIUM calls must take a message and alert the family._
   - _Re-plan: Decision: the MEDIUM alert is sent at message-taken or at call end, never twice. Open decision in design.md: the default of up to 3 caller turns before taking a message stays unless you say otherwise._
 
-- [ ] **3. Vitest mock for Gemini.**
+- [x] **3. Vitest mock for Gemini.**
   Add `tests/helpers/gemini.ts` that mocks `@google/genai` `GoogleGenAI`
   (`models.generateContent`): success JSON, invalid JSON, thrown error, slow
   response. Set a dummy `GEMINI_API_KEY` in the helper and call
@@ -108,7 +108,7 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
     calls._
   - _MVP, build item 10: Tests must run without network or a real Gemini key._
 
-- [ ] **4. 30 fixture transcripts in `tests/fixtures`.**
+- [x] **4. 30 fixture transcripts in `tests/fixtures`.**
   `scams.json` (15: grandparent x3, CRA x3, bank x3, tech support x3,
   romance x3) and `legitimate.json` (15: doctor's office x3, pharmacy x3,
   delivery x3, real grandchild with safe word x3, neighbour x3). Each entry:
@@ -120,7 +120,7 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
     not edited to pass. The task report lists every `knownGap`._
   - _MVP, build item 10: The 30 fixtures also feed the simulator._
 
-- [ ] **5. Property-based tests with fast-check** in
+- [x] **5. Property-based tests with fast-check** in
   `tests/scoring-properties.test.ts`:
   (a) rules score is monotonic: appending utterances never lowers it;
   (b) a transcript containing a payment signal and an urgency signal scores
