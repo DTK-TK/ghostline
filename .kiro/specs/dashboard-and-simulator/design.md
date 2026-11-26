@@ -1,222 +1,301 @@
-# Design — dashboard-and-simulator
+# Design: dashboard-and-simulator
 
-## Overview
+## What exists today (read from the files)
 
-The dashboard is a Next.js App Router app under `app/(dashboard)/`. It uses
-server components for the initial data fetch and client components for
-Realtime subscriptions. The simulator is a single API route for demo use.
+- `app/` has only the starter `page.tsx`, a root `layout.tsx` titled "Create
+  Next App", the report page (needs `report-client.tsx`), `app/dev/phone/*`
+  (page and 30 KB client) and routes under `app/api/dev/phone/*` and
+  `app/api/voice/*`. `app/api/simulate/` holds only `.gitkeep`. There is no
+  `app/(dashboard)`.
+- No code subscribes to Realtime. `createBrowserClient()` exists in
+  `lib/db.ts` and is never imported. The migration adds `calls` and
+  `call_events` to the `supabase_realtime` publication.
+- `lib/providers/` (index, telephony, ai) implements mock, Ollama, Gemini and
+  Twilio selection.
+- `components/ui/` has badge, button, card, dialog, input, switch, table, tabs
+  and toast (shadcn "base-nova" on `@base-ui/react`, class merging from the
+  `cn` package).
 
----
-
-## Route map
+## Route map (target)
 
 ```
+instrumentation.ts                 register(): assertProvidersSafe()
+proxy.ts                           session check for dashboard routes (Next 16 name for middleware)
 app/
-  layout.tsx                     Root layout — dark theme, header
-  page.tsx                       → redirect to /(dashboard)
+  layout.tsx                       dark theme, title "Ghostline", Toast provider
+  page.tsx                         redirect("/live")
   (dashboard)/
-    layout.tsx                   Dashboard shell: header + sidebar
-    page.tsx                     Call list (/)
-    calls/[id]/page.tsx          Call detail
-    settings/page.tsx            Household settings
+    layout.tsx                     header + nav (server), UnreadDot (client)
+    live/page.tsx                  Live (server shell + <LiveCall/>)
+    calls/page.tsx                 Calls table
+    calls/[id]/page.tsx            Call details
+    settings/page.tsx              Settings
   api/
-    simulate/route.ts            POST /api/simulate
-    settings/
-      household/route.ts         PATCH — update name, time_waster_enabled
-      contacts/route.ts          GET / POST trusted contacts
-      contacts/[id]/route.ts     DELETE trusted contact
-      members/route.ts           GET / POST family members
-      members/[id]/route.ts      PATCH / DELETE family member
-      safe-word/route.ts         POST — change safe word (hash + store)
-  reports/[id]/page.tsx          Fraud report (already exists)
+    simulate/route.ts              POST start
+    simulate/step/route.ts         POST one step
+    settings/household/route.ts    PATCH name, time_waster_enabled
+    settings/safe-word/route.ts    POST
+    settings/contacts/route.ts     POST;  contacts/[id]/route.ts  PATCH, DELETE
+    settings/members/route.ts      POST;  members/[id]/route.ts   PATCH, DELETE
+  dev/phone/*  api/dev/phone/*     exist; gated by devToolsEnabled()
+lib/
+  turn.ts                          processTurn(): one turn, shared by 3 callers
+  finalize-call.ts                 finalizeCall(): end time, outcome, alerts, report
+  live-status.ts                   deriveLiveStatus(call, events, now)  (pure)
+  realtime.ts                      applyChange(state, payload)          (pure)
+  unread.ts                        unread set helpers (pure)
+  dev-gate.ts                      devToolsEnabled()
+  simulator/scenarios.ts           scenario ids -> fixture lines
+  simulator/run.ts                 startSimulation(), nextStep()
+  providers/assert.ts              assertProvidersSafe()
+  supabase-browser.ts              one browser client per tab
+supabase/migrations/0004_dashboard.sql
 ```
 
----
+Pages stay thin. Data and rules live in `lib/`.
 
-## Header component
+## Shared turn code
 
-```tsx
-// app/(dashboard)/layout.tsx  or  components/Header.tsx
-<header class="flex items-center gap-3 font-mono bg-zinc-900 px-6 py-3">
-  <CassetteTapeIcon />              {/* lucide-react or custom SVG */}
-  <span class="text-xl tracking-widest text-white">GHOSTLINE</span>
-  {hasUnread && (
-    <span
-      class="ml-auto h-3 w-3 rounded-full bg-red-500 animate-pulse"
-      aria-label="Unread alerts"
-    />
-  )}
-</header>
-```
+Three places run a conversation turn today or soon: `/api/voice/turn`,
+`/api/dev/phone/turn` and the simulator. The first two already duplicate the
+persistence steps (write the transcript, run `engine()`, write `state_change`,
+update the call). A fourth copy would drift. `processTurn({ callSid,
+speech, source })` in `lib/turn.ts` does all of it (transcript write, safe-word
+redaction, engine, state change with time-waster extras, `updateCall`, alert
+trigger) and returns `{ reply, nextState, hangup, ... }`. Each route only
+adapts input and output: Twilio form to TwiML, JSON for the dev phone, and a
+script line for the simulator. This depends on conversation-and-scoring task 1
+(the live route using the real engine).
 
-`hasUnread` is derived server-side: query `calls` for
-`risk_level IN ('medium','high')` and check a read-state store. The dot
-re-renders via Realtime on the client.
+`finalizeCall(call)` is the end of a call: set `ended_at`, outcome, the
+time-waster exit event, the MEDIUM alert and the HIGH report. The status
+webhook and the simulator both call it.
 
----
-
-## Call list page
-
-Server component fetches initial rows via `getRecentCalls(householdId)`.
-Client component (`<CallListClient>`) subscribes to Supabase Realtime
-`calls` INSERT/UPDATE filtered by `household_id` and merges new rows into
-local state.
-
-```tsx
-<Table>
-  <TableHeader> started_at | from | claimed_identity | risk | score | outcome | → </TableHeader>
-  {calls.map(c => (
-    <TableRow key={c.id}>
-      <Td>{formatTime(c.started_at)}</Td>
-      <Td>{c.from_number ?? "unknown"}</Td>
-      <Td>{c.claimed_identity ?? "—"}</Td>
-      <Td><RiskBadge level={c.risk_level} /></Td>  {/* colour + text label */}
-      <Td>{c.risk_score ?? "—"}</Td>
-      <Td>{c.outcome ?? "—"}</Td>
-      <Td><Link href={`/calls/${c.id}`}>View →</Link></Td>
-    </TableRow>
-  ))}
-</Table>
-```
-
-`<RiskBadge>` renders both colour and text to satisfy the accessibility rule:
-
-```tsx
-const COLOURS = { low: "bg-green-500", medium: "bg-amber-500", high: "bg-red-500" };
-<Badge class={COLOURS[level]}>{level.toUpperCase()}</Badge>
-```
-
----
-
-## Call detail page
-
-Server component:
-
-1. `getCallBySid` / query by UUID.
-2. `getCallEvents(call.id)` — full event timeline.
-3. `getFraudReport(call.id)` — link if present.
-
-Client component (`<CallDetailClient>`):
-- Subscribes to Realtime on `call_events` filtered by `call_id`.
-- Subscribes to Realtime on `calls` filtered by `id`.
-- Appends new events to the timeline live.
-- Updates risk score + state badge when the call row changes.
-- On mount: marks call as "read" (removes from unread count).
-
----
-
-## Settings page
-
-Three shadcn/ui card sections:
-
-1. **Household** — editable family name field + time-waster `<Switch>`.
-2. **Trusted contacts** — `<Table>` of contacts, add via `<Dialog>` form,
-   delete with confirmation.
-3. **Family members** — `<Table>` with `gets_alerts` and `is_callback_target`
-   `<Switch>` per row, add via `<Dialog>`.
-4. **Safe word** — single `<Input type="password">` + confirm field. On save,
-   the new word is sent to `POST /api/settings/safe-word` where it is hashed
-   server-side. The hash is never sent to the client.
-
-All mutations call the matching API route with `fetch`. On success, the page
-re-fetches or uses optimistic updates.
-
----
-
-## Safe-word change API
+## Live page
 
 ```
-POST /api/settings/safe-word
-Body: { newWord: string, householdId: string }
-
-Server:
-  normalised = newWord.trim().toLowerCase()
-  hash = await bcrypt.hash(normalised, 12)
-  await adminDb().from("households").update({ safe_word_hash: hash }).eq("id", householdId)
-  return { ok: true }
+server: pick active call (ended_at is null and started < 15 min ago),
+        load events, fraud report, household masked contacts
+client: <LiveCall initial={...}/>
+  useLiveCall(callId):
+    channel = browser.channel("live:"+householdId)
+      .on(postgres_changes, calls, filter household_id=eq.H)     // new/updated call
+      .on(postgres_changes, call_events, filter call_id=eq.C)    // events of the active call
+      .subscribe(status => setConnection(status))
+    after SUBSCRIBED: fetch events since lastSeen, merge   // subscribe, then backfill
+    applyChange(state, payload)   // dedupe by id, sort by created_at
+    poll every 3 s if status is CHANNEL_ERROR or TIMED_OUT
+  status = deriveLiveStatus(call, events, now)
 ```
 
-The plaintext `newWord` exists only in memory on the server for the duration
-of the hash computation. It is never stored, logged, or returned.
+When a new call row arrives and the current one has ended, the page switches
+to it. `call_events` has no `household_id`, so the events subscription is
+filtered by the active `call_id` and re-created when the call changes. RLS
+(below) scopes what each browser receives.
 
----
+`deriveLiveStatus` is pure and returns:
+
+```
+{ level, score, flags: [{ id, label, quote }],
+  safeWord: "not_asked" | "asked" | "passed" | "failed", attempts,
+  callback: "not_initiated" | "calling" | "pending" | "confirmed" | "denied" | "no_answer",
+  timeWasted: { startedAt, endedAt, seconds, running } | null,
+  transcript: [{ id, speaker, text, at }], state, simulated }
+```
+
+It reuses `call-evidence.ts` (alerts-and-report) and `timeWastedSummary`
+(time-waster). The timer re-renders every second from `now`, which is passed
+in, so tests need no fake clock.
+
+Components (shadcn only): `Card`, `Badge`, `Button`, `Tabs`, `Dialog` (simulate
+confirm), `Table`. The risk meter is a `div` bar styled with Tailwind inside a
+`role="meter"` wrapper (no extra library). Add shadcn `progress` and
+`scroll-area` through the shadcn CLI if preferred.
+
+## Calls and details
+
+`/calls`: `getRecentCalls(householdId, 25)` plus one query for
+`fraud_reports.call_id in (...)` to show the Report link. "Load more" passes a
+`started_at` cursor. A Realtime `calls` INSERT prepends a row.
+`/calls/[id]`: uuid validated with zod, then `notFound()`. Events come from
+`getCallEvents`. Marks the call viewed on mount.
+
+## Settings
+
+Server routes validate with zod and check the session's household. They call
+`updateHousehold`, `createContact`, `deleteContact`, `createMember`,
+`updateMember`, `deleteMember` helpers (to add to `lib/db.ts`). The page loads
+a `HouseholdPublic` shape without `safe_word_hash`, plus `safe_word_set`.
+Safe word: `normalise()` (safe-word-and-callback spec), then
+`bcrypt.hash(word, 12)`, then update. Plaintext is never logged.
+
+## Unread dot
+
+`unread.ts` keeps `viewed: Set<callId>` in `localStorage["ghostline:viewed:"+householdId]`.
+Unread = calls with level medium or high and not viewed, from the initial list
+plus Realtime inserts and updates. The dot is a client component in the server
+layout. With accounts, a `call_views` table replaces `localStorage`.
+
+## Access control and RLS
+
+Migration `0004_dashboard.sql`:
+
+```sql
+ALTER TABLE households ENABLE ROW LEVEL SECURITY;
+-- same for contacts, family_members, calls, call_events, fraud_reports, mock_messages
+ALTER TABLE households     ADD COLUMN is_demo boolean NOT NULL DEFAULT false;
+ALTER TABLE family_members ADD COLUMN user_id uuid REFERENCES auth.users(id);
+ALTER TABLE calls          ADD COLUMN is_simulated boolean NOT NULL DEFAULT false;
+
+CREATE POLICY calls_read ON calls FOR SELECT TO authenticated USING (
+  household_id IN (SELECT household_id FROM family_members WHERE user_id = auth.uid())
+  OR household_id IN (SELECT id FROM households WHERE is_demo));
+CREATE POLICY events_read ON call_events FOR SELECT TO authenticated USING (
+  call_id IN (SELECT id FROM calls));          -- inherits the calls policy
+-- no policy on households, contacts, family_members, fraud_reports, mock_messages:
+-- with RLS on, the browser gets nothing; the server uses the service role.
+```
+
+Realtime `postgres_changes` applies these policies to each subscriber. Check
+the Supabase docs for the exact behaviour of filters with RLS before relying
+on them.
+
+Sign-in (open decision). Default:
+
+| Who | How |
+|---|---|
+| Family member | Supabase Auth email link. `family_members.user_id` links the account. |
+| Judge | Supabase anonymous sign-in (enable it in the project); sees demo household only, read-only. |
+| SMS link | `/calls/{id}?t=<signed token>`: HMAC over call id and expiry (7 days) with a server secret. A valid token lets a phone open that call and its report once, then sets a short-lived cookie. |
+
+Alternative if accounts cannot be built in time: a household access code
+checked by `proxy.ts`, with the browser reading through a server route that
+polls every 2 seconds instead of Realtime. State which was chosen in the PR.
+
+`proxy.ts` (called `middleware.ts` in older Next.js; see
+`node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/proxy.md`)
+redirects unauthenticated requests to sign-in. Route handlers and server
+components still check the session themselves; the proxy is only the first
+gate.
 
 ## Simulator
 
 ```
-POST /api/simulate
-Body: { scenario, householdId }
+POST /api/simulate { scenarioId }
+  gate: ENABLE_SIMULATOR === "true" else 404
+  household = demo household (is_demo) else 403
+  limits: last simulated call started < 30 s ago -> 429; > 50 today -> 429
+  call = createCall({ call_sid: "SIM_"+uuid, from_number: "+15550100000",
+                      is_simulated: true, state: "screening" })
+  return { callSid, callId, total, willSendRealSms }
 
-Gate: if ENABLE_SIMULATOR !== "true" → return 404
-
-1. getHousehold(householdId)                        verify exists
-2. createCall({ household_id, call_sid: "sim_"+uuid, from_number: "+15550000000", state: "screening" })
-3. for each turn in SCENARIOS[scenario]:
-     appendEvent(transcript, { text: turn.callerUtterance, speaker: "caller" })
-     result = await engine({ callSid, speechResult: turn.callerUtterance, … })
-     if (result.nextState changed) appendEvent(state_change)
-     updateCall(…)
-4. if final risk_level in ["medium","high"]:
-     await sendAlerts(context)
-5. if final risk_level === "high":
-     await buildAndStoreReport(call.id)
-6. return { callId: call.id, riskLevel, riskScore, outcome }
+POST /api/simulate/step { callSid, index }
+  verify call is simulated, not ended
+  expected = number of caller lines already stored
+  index !== expected -> 409
+  line = SCENARIOS[scenarioId].lines[index]      // the server owns the text
+  result = processTurn({ callSid, speech: line.text, source: "simulator" })
+  if line.callbackAnswer: recordCallbackResult(...)   // no outbound call
+  last line or terminal state -> finalizeCall(call)
+  return { line, reply, level, score, state, done }
 ```
 
-### Scenario scripts
+The client drives the pace: after each response it waits 1.5 s and posts the
+next index (a `setTimeout` loop in the Simulate component). One request per
+line keeps every request inside the platform limit (a whole replay in one
+request would be 5 lines x (1.5 s + up to 6 s for the AI) and could pass 10 s).
+If the tab closes mid-run, the call stays open until the Live page's
+15-minute active window passes. The call sid is `SIM_<scenarioId>_<uuid>`, so
+the step endpoint finds the script from the sid without a new column.
 
-```typescript
-const SCENARIOS = {
-  grandparent_scam: [
-    { callerUtterance: "Hi it's me, your grandson Tommy." },
-    { callerUtterance: "I'm in jail, I need bail money right now." },
-    { callerUtterance: "Please don't tell anyone, send gift cards." },
-  ],
-  cra_scam: [
-    { callerUtterance: "This is the CRA calling about your tax account." },
-    { callerUtterance: "You owe two thousand dollars, pay immediately or be arrested." },
-    { callerUtterance: "Wire transfer to this account, don't call anyone." },
-  ],
-  tech_support: [
-    { callerUtterance: "Hello, I'm calling from Microsoft support." },
-    { callerUtterance: "Your computer has a virus, install AnyDesk right now." },
-    { callerUtterance: "Give me the access code on your screen." },
-  ],
-  legitimate_caller: [
-    { callerUtterance: "Hi, this is Dr. Rivera calling about an appointment." },
-    { callerUtterance: "I just wanted to confirm tomorrow at 2pm." },
-  ],
-};
-```
+Scenarios are ids into `tests/fixtures/scams.json` and `legitimate.json`
+(conversation-and-scoring task 4), imported as JSON so there is one source.
+Each fixture may carry `callbackAnswer: "denied" | "confirmed" | "no_answer"`
+and `safeWord: "correct" | "wrong"` for the grandchild cases. A safe word step
+sends the household's real word only when the scenario says `correct`, taken
+from `SIMULATOR_SAFE_WORD` (env, demo household only), never from the client.
 
----
+SMS bodies and the report for a simulated call carry the SIMULATED prefix and
+header. `buildAlertSms` (alerts spec) takes `call.is_simulated`.
 
-## Realtime subscription pattern
+## Providers and test mode
 
-```typescript
-// client component
-const channel = browserDb()
-  .channel("calls:" + householdId)
-  .on("postgres_changes", {
-    event: "*",
-    schema: "public",
-    table: "calls",
-    filter: `household_id=eq.${householdId}`,
-  }, (payload) => {
-    // merge payload.new into local state
-  })
-  .subscribe();
+| Setting | Result |
+|---|---|
+| `MOCK_TELEPHONY=true` | `MockTelephony` writes `mock_messages`, logs masked numbers |
+| unset or other | `TwilioTelephony` (throws without credentials) |
+| `AI_PROVIDER=mock` | rules-only scripted replies |
+| `AI_PROVIDER=ollama` | local model at `OLLAMA_URL` |
+| `AI_PROVIDER=gemini` or unset | Gemini |
+| anything else | error listing the valid values |
 
-// cleanup
-return () => { channel.unsubscribe(); };
-```
+`assertProvidersSafe()` runs from `instrumentation.ts` `register()`, which
+Next.js calls once at server start (see
+`node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/instrumentation.md`).
+When `VERCEL_ENV === "production"` it throws if `MOCK_TELEPHONY=true`,
+`AI_PROVIDER` is `mock` or `ollama`, or the value is unknown. The lazy checks
+inside `createTelephonyProvider` and `createAIProvider` stay as a second line
+of defence. `.env.example` ends with `AI_PROVIDER=ollama` uncommented today.
+Move it to a commented dev block and list `ENABLE_SIMULATOR` and
+`ENABLE_DEV_TOOLS`.
 
----
+## Dev tools
+
+`devToolsEnabled()` = not `VERCEL_ENV === "production"` and
+(`ENABLE_DEV_TOOLS === "true"` or `NODE_ENV === "development"`). It replaces
+the inline `VERCEL_ENV` checks in `app/dev/phone/page.tsx` and the five
+`app/api/dev/phone/*` routes. The dev page is exempt from the 16 px rule (it is
+developer-only) but keeps dark theme and colour-plus-label risk. Callback
+buttons: **Press 1** denied, **Press 2** confirmed, **No answer**, matching
+the spoken prompt in safe-word-and-callback.
+
+## Known defects in the current code (verified by reading the files)
+
+1. No dashboard pages, header, Live page, call list, details or Settings. The
+   home page is the Next.js starter. `app/layout.tsx` is titled "Create Next
+   App" and has no dark class.
+2. `app/globals.css` defines only `--background` and `--foreground` (switching
+   by `prefers-color-scheme`). The tokens the shadcn components use
+   (`bg-primary`, `text-muted-foreground`, `border-border`, and so on) are not
+   defined, so the components render unstyled.
+3. No Realtime client code anywhere. `createBrowserClient()` is unused.
+4. No RLS on any table and no grants or policies. The public anon key can
+   read and write all tables, including `households.safe_word_hash`.
+5. `app/api/simulate/` is empty. No scenarios exist.
+6. `instrumentation.ts` does not exist. The mock-in-production check runs when
+   `getTelephony()` or `getAI()` is first called, and inside route handlers the
+   thrown error is caught and turned into fallback TwiML, so a bad production
+   config fails quietly instead of at startup. Ollama is accepted in
+   production.
+7. `.env.example` sets `AI_PROVIDER=ollama` and `MOCK_TELEPHONY=false` as live
+   lines. `ENABLE_SIMULATOR` and `ENABLE_DEV_TOOLS` are not listed.
+8. The dev phone is gated by `VERCEL_ENV !== "production"` only, so a Vercel
+   preview deployment exposes it, with service-role access, to anyone.
+9. Dev phone callback buttons are reversed (It's me = press 1, Not me =
+   press 2) versus the prompt in the safe-word spec.
+10. The dev turn route repeats the turn logic of `/api/voice/turn` and writes
+    the transcript before the engine (so the latest utterance is duplicated in
+    the history). It returns the callback target's full phone number in JSON.
+11. The inbox API returns full numbers and bodies. The page shows only the last
+    four digits.
+12. Nothing writes `mock_messages` yet: `MockTelephony` is reached only through
+    `lib/alerts.ts`, which no route calls.
+13. `lib/db.ts` has `Database = any`, no `updateHousehold`, contact or member
+    helpers, and `HouseholdSchema` includes `safe_word_hash`.
+14. The previous design put the call list at `/`, had no Live page, ran the
+    whole replay inside one request, accepted any `householdId`, and gated on
+    `NODE_ENV` as well as `ENABLE_SIMULATOR`.
 
 ## Testing strategy
 
-| Test file | What it covers |
+| File | Covers |
 |---|---|
-| `tests/simulate.test.ts` | Each scenario ends with the expected risk level; 404 when ENABLE_SIMULATOR unset |
-| `tests/settings.test.ts` | Safe-word route hashes correctly and never echoes plaintext; contact CRUD round-trips |
-| Manual | Open dashboard on two browser tabs; trigger a simulated call; confirm the call list updates live in both tabs; verify unread dot appears and clears on navigation |
+| `tests/live-status.test.ts` | `deriveLiveStatus`: every safe word and callback state, flags with quotes, timer running and frozen, transcript order |
+| `tests/realtime-merge.test.ts` | `applyChange`: dedupe, ordering, call switch, late events |
+| `tests/unread.test.ts` | Unread set from calls and views |
+| `tests/simulate.test.ts` | 404 without the flag, 403 non-demo, unknown scenario 400, 429 limits, 409 step order, server-only text, SIMULATED labels, ends finalised, expected levels (mock AI, fixtures) |
+| `tests/settings.test.ts` | Validation, safe word hashed with cost 12 and never echoed, no `safe_word_hash` in any response, 401 without a session |
+| `tests/providers.test.ts` | Selection matrix, production guard for each mock and Ollama, unknown value |
+| `tests/dev-gate.test.ts` | Gate for production, preview, development |
+| `tests/rls.sql` or a script | With the anon key: `select * from households` returns nothing; a member sees only their household's calls |
+| Manual | Simulate end to end (see tasks) |

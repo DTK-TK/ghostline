@@ -1,189 +1,189 @@
-# Tasks — alerts-and-report
+# Tasks: alerts-and-report
+
+Status was checked by reading the code and imports, not from earlier notes.
+
+Rule for `[x]`: the code fully does it AND it is wired (an `app/api/voice/*`
+route or a page that builds reaches it). The previous version of this file
+checked about ten items and cited `tests/alerts.test.ts` and
+`tests/report.test.ts`, which do not exist. One of those marks even said
+"pending a test". Those marks were removed.
+
+What exists but is not wired: `sendAlerts`, `buildAlertSms`,
+`buildChecklistSms` in `lib/alerts.ts` (nothing outside the file imports them);
+`buildAndStoreReport`, `loadReport`, `buildCafcText` in `lib/report.ts` (only
+the report page imports `loadReport` and `buildCafcText`, and that page does
+not compile); `getAlertRecipients`, `getFraudReport`, `createFraudReport` in
+`lib/db.ts`; the `fraud_reports` table; `MockTelephony.sendSms`.
+`app/reports/[id]/page.tsx` exists but cannot build without `report-client.tsx`.
 
 ---
 
-## R1 — Alert trigger
+## Open tasks, in priority order
 
-- [ ] `sendAlerts()` is called from `/api/voice/status/route.ts` for MEDIUM and
-  HIGH calls after `updateCall()` sets `ended_at`.
-  - _Proof: `tests/voice-status.test.ts` — mock `sendAlerts`; POST to the status
-    route with a CallStatus that maps to a completed call; assert `sendAlerts` was
-    called when risk_level is "medium" or "high"._
+- [ ] **1. Create `app/reports/[id]/report-client.tsx` so `npx tsc --noEmit` passes.**
+  A `"use client"` default export taking `{ cafcText: string }` (add the time
+  fields from task 14 later). A read-only textarea with the CAFC text, a
+  shadcn `Button` "Copy for CAFC report" (clipboard with a toast on success and
+  a visible message on failure), a shadcn `Button` "Print" (`window.print()`),
+  both `print:hidden`. 16 px minimum text, dark theme. Either implement the
+  `?print=1` behaviour promised in the page header comment or delete that
+  sentence.
+  - _Proof: `npx tsc --noEmit` exits 0 (today the only error is
+    `Cannot find module './report-client'`). Manual: open `/reports/{id}`, click
+    Copy, paste into a text editor and see the full CAFC block._
 
-  > **Status:** `app/api/voice/status/route.ts` calls `updateCall()` and returns
-  > 204 but does not call `sendAlerts()`. Task is open.
+- [ ] **2. Add `alert_type` to the `alert_sent` payload schema in `lib/db.ts`.**
+  `alert_type: z.enum(["risk", "checklist"])`. Also add the optional fields the
+  new flow uses: `level`, `recipient_id`, `status` (`sending`, `sent`,
+  `failed`). `lib/alerts.ts` already sends `alert_type`.
+  - _Proof: `tests/alert-event-schema.test.ts`: `CallEventPayloadSchema` accepts
+    a risk and a checklist payload and rejects a payload with no `alert_type` or
+    with `alert_type: "other"`; `npx tsc --noEmit` passes._
 
----
+- [ ] **3. Replace the dynamic `import()` calls in `lib/report.ts` with static imports.**
+  Import `adminDb`, `CallSchema` and `FraudReportSchema` at the top. Remove the
+  unused `getCallBySid` and `getHousehold` imports. Optionally add
+  `getCallById()` to `lib/db.ts` instead of the inline query.
+  - _Proof: `Select-String lib\report.ts -Pattern 'await import\('` finds
+    nothing; `npx tsc --noEmit` passes; `tests/report.test.ts` mocks
+    `@/lib/db` with `vi.mock` and `buildAndStoreReport` returns a report built
+    from the mocked call and events._
 
-## R2 — Alert recipients
-
-- [x] `sendAlerts()` calls `getAlertRecipients(householdId)` and returns without
-  error when the result is empty.
-  - _Proof: `tests/alerts.test.ts` — mock `getAlertRecipients` to return `[]`;
-    call `sendAlerts`; assert no Twilio `messages.create` call and no error thrown._
-
----
-
-## R3 — Primary risk-alert SMS
-
-- [x] `buildAlertSms(context, dashboardUrl)` produces a body containing risk tag,
-  claimed identity, amount, payment method, safe-word result, callback result,
-  and dashboard URL.
-  - _Proof: `tests/alerts.test.ts` — call with a fully populated context; assert
-    all fields appear in the returned string._
-
-- [x] Body is truncated to ≤ 320 characters with a trailing "…" when over the limit.
-  - _Proof: `tests/alerts.test.ts` — supply a 400-char identity string; assert
-    `result.length <= 320` and result ends with "…"._
-
----
-
-## R4 — Money-move checklist SMS
-
-- [x] `buildChecklistSms(seniorName, familyContactName)` returns a message naming
-  both the senior and the callback contact.
-  - _Proof: `tests/alerts.test.ts` — assert both names appear in the returned
-    string._
-
-- [ ] `sendAlerts()` sends the checklist SMS only when `context.paymentMethod` is
-  not null.
-  - _Proof: `tests/alerts.test.ts` — call with `paymentMethod=null`; assert only
-    one Twilio `messages.create` call (risk only). Call again with a payment
-    method; assert two calls._
-
-  > **Status:** The logic is in `lib/alerts.ts` and appears correct, but there
-  > are no tests to confirm it. Task is open until tests are written.
+- [ ] **4. Test: alerts are sent only once per call, even if HIGH is reported on several turns.**
+  `tests/alerts-once.test.ts`. Mock `@/lib/providers` so `getTelephony()`
+  returns `{ sendSms: vi.fn() }`. Mock `@/lib/db` with a stateful fake
+  (`appendEvent` stores events, `getCallEvents` returns them,
+  `getAlertRecipients` returns two members with `gets_alerts: true`,
+  `getHousehold` returns the household).
+  (a) Call `sendAlerts` with a HIGH context three times (three turns): the
+  mock has been called exactly 4 times in total (2 recipients x risk and
+  checklist), and each (recipient, type) pair once. With `paymentMethod: null`
+  it is 2 calls.
+  (b) `Promise.all([sendAlerts(ctx), sendAlerts(ctx)])` sends each pair once
+  (needs task 8).
+  (c) Through `alertCall(callId)` three times with a HIGH call, then once more
+  from the status route path: still the same total (needs task 5).
+  - _Proof: `npx vitest run tests/alerts-once.test.ts`. Case (a) passes against
+    today's code once the file is importable; (b) and (c) fail until tasks 8
+    and 5 land._
 
 ---
 
-## R5 — Idempotency
+## Further open tasks
 
-- [x] `sendAlerts()` checks for existing `alert_sent` events before sending each
-  message and skips already-sent pairs.
-  - _Proof: `tests/alerts.test.ts` — pre-populate a `risk:+15550001111` event;
-    call `sendAlerts`; assert Twilio is called 0 times for that recipient._
+- [ ] **5. Wire the triggers.** Add `lib/alert-call.ts` (`alertCall(callId)`) and
+  call it when a call becomes HIGH (engine, callback-result, hold-check), when a
+  MEDIUM call takes a message, and from `/api/voice/status` on call end, which
+  also calls `buildAndStoreReport(call.id)` for HIGH calls. Alert and report
+  failures are caught and never change the response. Check Next.js
+  `after()` in `node_modules/next/dist/docs/` first, as `AGENTS.md` requires.
+  - _Proof: `tests/alert-call.test.ts` (HIGH now, MEDIUM waits for end, LOW none,
+    no recipients is fine) and `tests/voice-status.test.ts` (alerts for medium
+    and high, report only for high, 204 even when alerting throws)._
 
-  > **Status:** The idempotency logic (`sentAlertKeys()`) is implemented in
-  > `lib/alerts.ts`. Task marked [x] pending a formal test being written that
-  > verifies the behaviour.
+- [ ] **6. Persist amount and payment method.** Migration `0003`: add
+  `calls.requested_amount` and `calls.payment_method`. Add them to `CallSchema`
+  and `CallInsertSchema`. The engine writes the latest non-empty AI value, with
+  a rules-based extraction when the AI is down, and never overwrites with an
+  empty value. `report.ts` reads them instead of `null`. Needs
+  conversation-and-scoring task 1.
+  - _Proof: `tests/conversation.test.ts`: "send $500 in gift cards" sets both;
+    a later turn without them keeps them; a Gemini failure still sets the
+    payment method._
 
-- [ ] Write `tests/alerts.test.ts` to formally verify idempotency end-to-end.
-  - _Proof: `npx vitest run tests/alerts.test.ts` passes._
+- [ ] **7. Red-flag quotes.** `scoreRules` returns `matches: { flag, quote }[]`;
+  the engine writes `quote` on each `red_flag` event (instead of "rules-only" or
+  "ai+rules"); the report uses `quote`. Update the zod schemas.
+  - _Proof: `tests/scoring-rules.test.ts` (quote contains the matched phrase,
+    cut to 200 characters) and `tests/report.test.ts` (report flags carry
+    quotes; CAFC text shows them)._
 
----
+- [ ] **8. At-most-once sending.** Migration unique index on `call_events` for
+  `alert_sent` (call, alert_type, recipient_id). In `lib/alerts.ts`: claim
+  before sending, per-recipient `try/catch`, `Promise.allSettled`, status
+  `sending`/`sent`/`failed`, retry only failed claims.
+  - _Proof: `tests/alerts-once.test.ts` case (b); a failing `sendSms` for one
+    recipient still sends to the other and leaves a `failed` claim that a later
+    call retries once._
 
-## R6 — Alert event logging
+- [ ] **9. SMS body.** New template, per-field limits (40, 20, 20), cleaning of
+  URLs, control and non-GSM characters, link never cut, ASCII `...`, `pending`
+  callback value.
+  - _Proof: `tests/alerts.test.ts` with fast-check: for any strings, body is at
+    most 320 characters, contains the dashboard link and the level tag, and
+    contains no `http`, `www.` or character outside GSM-7 from the inputs; the
+    example from R3 matches exactly._
 
-- [x] After each SMS, `appendEvent` is called with `type="alert_sent"`,
-  `channel="sms"`, `recipient` (E.164), and `alert_type` ("risk" or "checklist").
-  - _Proof: `tests/alerts.test.ts` — mock `appendEvent`; call `sendAlerts`; assert
-    it is called with the correct payload._
+- [ ] **10. Money-move checklist.** Rewrite `buildChecklistSms` as steps chosen by
+  payment method, naming the callback target from `getCallbackTargets()`, at
+  most 320 characters, no caller text. Send only when `payment_method` is set.
+  - _Proof: `tests/alerts.test.ts`: four payment branches, contact named,
+    fallback "a family member", `paymentMethod: null` sends no second SMS._
 
-- [ ] No `console.log` or `console.error` in `lib/alerts.ts` outputs a full phone
-  number.
-  - _Proof: `tests/alerts.test.ts` — spy on `console.log`/`console.error`; call
-    `sendAlerts` with a known number; assert no log line contains the full E.164
-    string._
+- [ ] **11. One scam-type heuristic.** `lib/scam-type.ts` with whole-word
+  matching; delete the dead copy in `alerts.ts` and the old one in
+  `report.ts`.
+  - _Proof: `tests/scam-type.test.ts`: each category; identities "Jason",
+    "Kirsten" and "Crabtree" are not impersonation scams._
 
----
+- [ ] **12. Unique report per call.** Migration: `UNIQUE` index on
+  `fraud_reports(call_id)`; insert with conflict handling that returns the
+  existing row.
+  - _Proof: `tests/report.test.ts`: two concurrent `buildAndStoreReport` calls
+    return the same row id and create one row (stateful fake)._
 
-## R7 — Fraud report generation
+- [ ] **13. Report page to the UI rules.** Dark theme on screen, white in print,
+  base text 16 px or larger, shadcn `Card`/`Badge`, risk colours green-500,
+  amber-500, red-500 with text labels, quotes shown, invalid or unknown id gives
+  `notFound()`, `noindex`, `force-dynamic`.
+  - _Proof: manual: `/reports/not-a-uuid` shows 404; print preview is white with
+    no buttons; `Select-String "app\reports" -Pattern "text-sm|bg-white"` finds
+    nothing outside `print:` variants._
 
-- [x] `buildAndStoreReport(callId)` is idempotent: calls `getFraudReport` first
-  and returns the existing row if one is found.
-  - _Proof: `tests/report.test.ts` — mock `getFraudReport` to return a row; call
-    `buildAndStoreReport`; assert `createFraudReport` is never called._
+- [ ] **14. Time zone.** Show the viewer's local time and UTC on the page, and
+  ISO with zone in `buildCafcText`.
+  - _Proof: `tests/report.test.ts`: CAFC text date matches `/\d{4}-\d{2}-\d{2}T.*Z/`._
 
-- [x] Report includes all required fields: `date_time`, `caller_number`,
-  `claimed_identity`, `scam_type`, `amount`, `payment_method`, `red_flags`,
-  `safe_word_result`, `callback_result`, `transcript`, `risk_score`,
-  `risk_level`, `summary`.
-  - _Proof: `tests/report.test.ts` — call with a fully populated call + events;
-    parse result through `FraudReportDataSchema`; assert no Zod errors._
+- [ ] **15. Privacy of logs.** Add or reuse `maskPhone`. `sendAlerts`,
+  `alertCall` and `MockTelephony` log no full numbers and no SMS bodies.
+  - _Proof: `tests/alerts.test.ts`: spy on `console.log`/`console.error` during
+    a send with a real-looking number; no call contains the number or the body._
 
-- [ ] `buildAndStoreReport()` is called from the status webhook (or turn route)
-  when risk level is HIGH.
-  - _Proof: `tests/voice-status.test.ts` — mock `buildAndStoreReport`; simulate a
-    completed HIGH-risk call; assert it was called._
+- [ ] **16. Access control for the report and call links.** Follow the
+  dashboard-and-simulator decision. Until then the id is the only protection.
+  - _Proof: decision recorded in that spec; test or manual check once chosen._
 
-  > **Status:** `lib/report.ts` exists and is complete, but nothing calls it yet.
-
----
-
-## R8 — CAFC text export
-
-- [x] `buildCafcText(report)` includes all required fields in the specified format
-  and ends with the CAFC report URL.
-  - _Proof: `tests/report.test.ts` — call with a known report; assert the output
-    string contains each field label and the CAFC URL._
-
-- [x] The CAFC text is never submitted automatically; it is only surfaced via the
-  copy-to-clipboard button.
-  - _Proof: Code review — `buildCafcText` is called only in `app/reports/[id]/page.tsx`
-    and passed to `<ReportClient>` for display. No fetch/POST using this text._
-
----
-
-## R9 — Report page
-
-- [x] `/reports/[id]/page.tsx` renders a summary section, red-flags list, and full
-  transcript.
-  - _Proof: Manual — open `/reports/{known_id}`; confirm all sections are visible._
-
-- [x] The page includes a "Copy for CAFC report" button (delegated to `<ReportClient>`).
-  - _Proof: Manual — click the button; paste into a text editor; confirm the CAFC
-    text block is present._
-
-- [ ] `<ReportClient>` component exists at `app/reports/[id]/report-client.tsx`.
-  - _Proof: File exists and exports a default component with clipboard and print
-    buttons._
-
-  > **Status:** `page.tsx` imports `ReportClient` from `./report-client` but that
-  > file does not exist in the workspace yet.
-
-- [x] The page includes a legal footer with the CAFC link and "nothing has been
-  submitted automatically".
-  - _Proof: Manual — scroll to the bottom of the report page._
-
----
-
-## R10 — No auto-submission
-
-- [x] No code path in `lib/report.ts`, `lib/alerts.ts`, or any route handler sends
-  report data to an external service automatically.
-  - _Proof: Code review — search the codebase for `fetch(` and `axios.post(` with
-    external URLs in `lib/report.ts`; confirm none exist._
+- [ ] **17. End-to-end check.** Simulate a HIGH call with a gift-card script and
+  two alert recipients: each gets one risk SMS and one checklist SMS (dev inbox
+  or real teammate numbers), a repeated status callback sends nothing more, the
+  report exists once, and the page prints and copies correctly.
+  - _Proof: manual run recorded in the PR._
 
 ---
 
-## R11 — Privacy
+## Requirement checklist (checked against the code)
 
-- [ ] `sendAlerts()` does not log full phone numbers to `console`.
-  - _Proof: `tests/alerts.test.ts` — described in R6 above._
-
-- [ ] `lib/report.ts` does not log full phone numbers or API keys.
-  - _Proof: Code review and `tests/report.test.ts` — spy on console in the report
-    builder; assert no E.164 strings appear._
-
----
-
-## Extra tasks
-
-- [ ] Create `app/reports/[id]/report-client.tsx` — client component with a
-  clipboard "Copy for CAFC report" button and a print button.
-  - _Proof: Manual — open the report page; click "Copy for CAFC report"; confirm
-    clipboard contains the CAFC text block._
-
-- [ ] Wire `sendAlerts()` and `buildAndStoreReport()` into
-  `app/api/voice/status/route.ts` for MEDIUM/HIGH calls.
-  - _Proof: `tests/voice-status.test.ts` — mock both functions; POST a completed
-    HIGH call; assert both were called._
-
-- [ ] Write `tests/alerts.test.ts` covering `buildAlertSms` truncation, checklist
-  gating, idempotency, event logging, and phone-number privacy.
-  - _Proof: `npx vitest run tests/alerts.test.ts` passes._
-
-- [ ] Write `tests/report.test.ts` covering `buildCafcText` output, `guessScamType`
-  for all categories, `extractSafeWordResult` with 0/1/2 attempt events, and
-  idempotency.
-  - _Proof: `npx vitest run tests/report.test.ts` passes._
+- [ ] **R1** Triggers. Nothing calls `sendAlerts`. Task 5.
+- [ ] **R2** Recipients. `getAlertRecipients` exists in `lib/db.ts` and
+  `sendAlerts` uses it and returns on an empty list, but it is not wired and
+  untested. Tasks 4, 5.
+- [ ] **R3** Risk SMS. Builder exists, but truncation cuts the link and caller
+  text is not cleaned. Task 9.
+- [ ] **R4** Checklist SMS. Current text is a reminder, not steps. Task 10.
+- [ ] **R5** At most once. Read-then-send, racy. Tasks 4, 8.
+- [ ] **R6** Alert events. No `alert_type` in the schema. Tasks 2, 8.
+- [ ] **R7** Failure isolation. One failure aborts the loop. Tasks 5, 8.
+- [ ] **R8** Evidence. No amount or payment columns, no quotes. Tasks 6, 7.
+- [ ] **R9** Fraud report. Builder exists, never called, dynamic imports,
+  amount and payment always `null`. Tasks 3, 5, 6, 7, 11, 12.
+- [ ] **R10** CAFC text. `buildCafcText` exists and is used by the page, but the
+  page does not compile and the text lacks quotes and time zone. Tasks 1, 7, 14.
+- [ ] **R11** Report page. Does not build; breaks the UI rules. Tasks 1, 13, 14, 16.
+- [x] **R12** Never submit automatically. No code in `lib/report.ts`,
+  `lib/alerts.ts` or any route sends report data to an external service (no
+  `fetch` or HTTP client in those files; the only outbound path is the
+  telephony provider's SMS to family members).
+  - _Proof: `Select-String lib\report.ts, lib\alerts.ts -Pattern 'fetch\(|axios|http\.request'`
+    finds nothing; the page footer states nothing is submitted._
+- [ ] **R13** Privacy. `MockTelephony` logs full numbers and bodies. Task 15.
+- [ ] **R14** Verification. No alert or report tests exist. Tasks 2, 3, 4, 8, 9 to 12.

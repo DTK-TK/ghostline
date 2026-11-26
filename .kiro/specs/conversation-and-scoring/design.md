@@ -1,237 +1,150 @@
-# Design — conversation-and-scoring
+# Design: conversation-and-scoring
 
-## Overview
-
-The conversation engine is the heart of Ghostline. It sits between the Twilio
-turn webhook and the TwiML builders, loading history from the DB, running two
-scoring layers in parallel, persisting new evidence, and returning the next
-persona reply and state.
-
----
-
-## Module layout
+## Module layout (target)
 
 ```
 lib/
-  conversation.ts         engine() — main entry point (replaces the stub)
-  conversation-engine.ts  runTurn() stub — route.ts imports this; wire to engine()
+  conversation.ts        engine(): the only entry point used by the route
   scoring/
-    rules.ts              scoreRules() — deterministic keyword scorer
-    ai.ts                 callGemini() — Gemini 2.5 Flash, JSON mode
-    combine.ts            combineScores() — merges both layers, applies adjustments
+    rules.ts             scoreRules(): deterministic, no I/O
+    ai.ts                callGemini(): adapter over getAI()
+    combine.ts           combineScores(), scoreToLevel()
+    reply-guard.ts       validateReply(): persona checks (new)
+  providers/
+    ai.ts                GeminiAI, OllamaAI, MockAI; zod schema; 6 s timeout
+    index.ts             getAI() singleton, AI_PROVIDER switch
 ```
 
----
+`lib/conversation-engine.ts` (the `runTurn()` stub) is deleted. The route
+imports `engine` from `@/lib/conversation`. Per `structure.md`, the route
+holds no business logic.
 
 ## Data flow per turn
 
 ```
 POST /api/voice/turn
-        │
-        ▼
-validateTwilioRequest()   ← throws 403 on bad sig
-        │
-        ▼
-getCallBySid() + getHousehold()
-        │
-        ▼
-appendEvent(transcript)   ← always, including silent turns
-        │
-        ▼
-        ├─ silence ×2 → silenceGoodbyeTwiml()
-        │
-        ▼
-engine(input)
-   ├─ getCallEvents()          load full history from DB
-   ├─ scoreRules(transcripts)  synchronous, no network
-   ├─ callGemini(...)          6 s timeout
-   │      └─ GeminiUnavailableError → scripted fallback
-   ├─ combineScores(...)        deterministic merge
-   ├─ appendEvent(red_flag)×N  one per new flag only
-   ├─ updateCall(...)           risk_score, risk_level, claimed_identity, summary
-   └─ computeNextState(...)     level + claims_family + time_waster_enabled
-        │
-        ▼
-appendEvent(state_change)   if state changed
-updateCall(state, risk_*)
-        │
-        ▼
-buildTwiml(nextState, reply, ...)
-        │
-        ▼
-twimlResponse(xml)
+  validateTwilioRequest -> getCallBySid, getHousehold
+  appendEvent(transcript, caller)
+  silence check (DB-backed count)
+  engine({ callSid, speechResult, currentState, currentRiskScore })
+    getCallEvents(call.id)
+    callerUtterances = caller transcripts, latest speech once
+    rules  = scoreRules(callerUtterances)
+    failed = count(safe_word_attempt where matched=false)
+    rulesScore = rules.score + 50 * failed
+    ai     = callGemini(...)           6 s, zod, on failure aiScore = 0
+    flags  = rules.flags + known AI flags
+    safeWordCorrect = any safe_word_attempt matched=true
+    callbackDenied  = any callback_result outcome="denied"
+    combined = combineScores({ rulesScore, aiScore, allFlags, safeWordCorrect,
+                               callbackDenied, priorScore })
+    reply = validateReply(ai.reply) ?? scripted line for combined.level
+    appendEvent(red_flag) for new flags only
+    appendEvent(transcript, system) for the reply
+    updateCall(risk_score, risk_level, claimed_identity, summary)
+    nextState = computeNextState(...)
+  appendEvent(state_change) if changed; updateCall(state, risk)
+  buildTwiml(nextState, reply)
 ```
 
----
+## Scoring
 
-## Scoring layers
+- Rules layer: regex table in `rules.ts`, one hit fires a flag once. Raw sum
+  can exceed 100 (max 175). `combineScores` caps it.
+- AI layer: `GeminiAI.generateTurn` in `lib/providers/ai.ts`. Temperature 0.2,
+  512 output tokens, `AbortSignal.timeout(6000)`, zod
+  `AITurnResponseSchema`. All failures become `AIUnavailableError`.
+  `lib/scoring/ai.ts` is a thin adapter that keeps the `callGemini` name.
+- Combine: order given in requirements R5. `callback_denied` adds 100 before
+  the safe-word step, so the step is skipped for it. Result is at least 100
+  after the cap, therefore HIGH.
+- `safe_word_fail` (50 each) is added to the rules score in the engine, so
+  `combineScores` keeps its current signature.
 
-### Rules layer (`lib/scoring/rules.ts`)
+## Reply guard
 
-Pure function. Takes the full array of caller utterances collected so far
-(not just the latest turn) and returns `{ score, flags }`.
+`validateReply(text)` returns the text or `null`. It rejects replies with more
+than 2 sentences, 25 or more words, or accusatory words ("scam", "scammer",
+"fraud", "fraudster", "criminal"). The engine never holds the safe word (only
+a bcrypt hash exists), so the prompt cannot leak it. The guard also rejects
+any reply that repeats the opening line. Null means: use the scripted line.
 
-Each flag fires at most once per call. The score is the sum of unique
-triggered flag weights. Runs synchronously with no I/O so it adds ~0 ms to
-the response time.
-
-```typescript
-export function scoreRules(transcript: string[]): RulesResult
-```
-
-### AI layer (`lib/scoring/ai.ts`)
-
-Calls `gemini-2.5-flash` in JSON mode. The system prompt embeds:
-- Family name (for the opening line).
-- Persona rules (tone, sentence limits, forbidden actions).
-- Flag IDs the model must use (`payment_method`, `secrecy`, …).
-- State-guidance hints keyed to risk bands.
-
-Returns a Zod-validated `GeminiResponse`. On any failure throws
-`GeminiUnavailableError`.
-
-```typescript
-export async function callGemini(
-  familyName: string,
-  history: ConversationTurn[],
-  latestSpeech: string,
-): Promise<GeminiResponse>
-```
-
-### Combine layer (`lib/scoring/combine.ts`)
-
-```typescript
-export function combineScores(input: CombineInput): CombineResult
-```
-
-Order of operations (must match scam-rules.md exactly):
-1. `score = max(rulesScore, aiScore)`
-2. if `callbackDenied`: `score += 100`
-3. if `safeWordCorrect && !callbackDenied`: `score = max(0, score − 40)`
-4. `score = max(score, priorScore)` — monotonic floor
-5. `score = min(100, score)` — DB cap
-
----
-
-## State machine (engine's view)
+## Fallback
 
 ```
-screening ──low, no family claim──► verified
-screening ──low, claims family   ──► screening (safe-word phase)
-screening ──medium               ──► screening (keep asking)
-screening ──high, TWE on         ──► time_wasted
-screening ──high, TWE off        ──► scam_blocked
-
-time_wasted ──3 min elapsed      ──► scam_blocked (or completed)
-
-verified    ──(terminal)
-scam_blocked──(terminal)
-completed   ──(terminal)
-transferring──(terminal)
+LOW:    "Thank you. Could you tell me more about why you're calling?"
+MEDIUM: "I need a moment. Could you tell me your name and reason for calling?"
+HIGH:   "I'm not able to connect this call. Goodbye."
 ```
 
-TWE = `households.time_waster_enabled`
+Applies when the AI is unavailable (timeout, bad JSON, missing key) or the
+reply guard rejects the AI reply. The time-waster persona fallback belongs to
+the time-waster spec. `engine()` currently never passes `inTimeWaster = true`,
+so that persona is unreachable until that spec lands.
 
-Terminal states never transition. The engine checks this before computing
-the new state.
+## State machine
 
----
+HIGH with time-waster on goes to `time_wasted`, otherwise `scam_blocked`.
+MEDIUM takes a message and alerts the family (alerts are in the
+alerts-and-report spec). LOW with a family claim stays in screening until the
+safe-word spec adds the challenge. LOW without a claim goes to `verified`.
+Terminal states never move.
 
-## Gemini system prompt structure
+Open decision: MEDIUM can end the screening on the first turn that reaches
+it, or screen for up to 3 caller turns first. Default if unanswered: up to
+3 caller turns, then take a message.
 
-```
-You are Ghostline … for the {familyName} family.
+## Known defects in the current code (all verified by reading the files)
 
-PERSONA RULES: (opening line, sentence limits, forbidden actions)
-
-SCAM FLAG IDs: payment_method | secrecy | authority | emergency_story |
-               urgency | remote_access
-
-NEXT-STATE GUIDANCE: (per risk band)
-
-Respond ONLY with valid JSON:
-{ reply, risk_score, flags, claimed_identity, claims_family,
-  requested_amount, payment_method, summary }
-```
-
-The prompt is built in `buildSystemPrompt(familyName)` in `lib/scoring/ai.ts`.
-No family member names, phone numbers, or the safe word are included.
-
----
-
-## Fallback strategy
-
-```
-callGemini()
-  throws GeminiUnavailableError
-        │
-        ▼
-usedFallback = true
-console.error("[conversation] Gemini unavailable …")
-        │
-        ▼
-aiScore = 0, aiFlagsIds = []
-        │
-        ▼
-combineScores({ rulesScore, aiScore: 0, … })
-        │
-        ▼
-reply = FALLBACK_REPLIES[level]
-  low:    "Thank you. Could you tell me more about why you're calling?"
-  medium: "I need a moment. Could you tell me your name and reason for calling?"
-  high:   "I'm not able to connect this call. Goodbye."
-```
-
-The call is never dropped. The rules layer keeps scoring even when Gemini
-is down.
-
----
-
-## `runTurn()` wiring
-
-`lib/conversation-engine.ts` currently exports a stub. The turn route imports
-`runTurn` from that file. Once the real engine is complete, `runTurn` must be
-re-exported from `lib/conversation-engine.ts` by delegating to `engine()` from
-`lib/conversation.ts`, preserving the existing import path in the route.
-
-```typescript
-// lib/conversation-engine.ts (after wiring)
-export { engine as runTurn } from "@/lib/conversation";
-export type { EngineInput as TurnInput, EngineOutput as TurnOutput } from "@/lib/conversation";
-```
-
----
-
-## Red-flag deduplication
-
-The engine loads all existing `red_flag` events for the call from
-`call_events` and collects their `flag` payloads into `priorFlagIds`. It only
-appends new `red_flag` events for flags NOT already in that set. This keeps
-the event log clean and avoids double-counting across turns.
-
----
-
-## Error budget
-
-| Step | Budget |
-|---|---|
-| `getCallEvents()` | ≤ 150 ms |
-| `scoreRules()` | < 1 ms |
-| `callGemini()` | ≤ 6 000 ms (AbortSignal.timeout) |
-| `appendEvent()` × N flags | ≤ 100 ms each |
-| `updateCall()` | ≤ 100 ms |
-| **Total engine budget** | **≤ 7 s** |
-
-The turn route's outer 10-second Twilio deadline leaves ~3 s for the
-surrounding webhook logic.
-
----
+1. `app/api/voice/turn/route.ts` imports the stub `runTurn`, which always
+   replies with a canned line and score 0. The real `engine()` runs only from
+   `/api/dev/phone/turn`.
+2. `engine()` hardcodes `safeWordCorrect: false` and `callbackDenied: false`.
+3. The route's `computeSilenceCount` returns the limit for any empty speech
+   in `screening`, so one silent turn ends the call.
+4. The route stores the caller turn before calling the engine. The engine
+   then appends `speechResult` again, and `formatHistoryForPrompt` appends
+   `latestSpeech` again, so the latest utterance appears twice in the prompt.
+5. Ghostline's own replies are never stored as transcript events, so Gemini
+   never sees its earlier lines.
+6. The Gemini prompt tells the model to speak the opening line on its first
+   turn, but the greeting is already spoken by TwiML.
+7. `GeminiAI`'s constructor throws a plain `Error` on a missing
+   `GEMINI_API_KEY`. The engine only catches `GeminiUnavailableError`, so
+   it rethrows and the route returns the generic error TwiML.
+8. AI `flags` are `z.array(z.string())` and are persisted as `red_flag`
+   events without checking against the known ids.
+9. Rules signals narrower than `scam-rules.md`: authority matches
+   "bank fraud department" but not "bank"; payment matches "wire transfer"
+   but not "wire", and courier only with "pick/collect"; remote access
+   matches "install" only when followed by "this/our/the". Broad matches
+   (`emergency`, `hospital`, `in trouble`) risk false positives: a doctor's
+   office saying "hospital" plus "right now" scores 45 (MEDIUM).
+10. No reply guard exists, so the 25-word and no-accusation rules are
+    prompt-only.
+11. `safe_word_fail` (50 per failure) has no implementation.
+12. MEDIUM never takes a message. It stays in `screening` forever.
+13. `getAI()` caches the provider in a module singleton. Tests that change
+    `AI_PROVIDER` must call `vi.resetModules()`.
 
 ## Testing strategy
 
-| Test file | What it covers |
+| File | Covers |
 |---|---|
-| `tests/scoring-rules.test.ts` | Property-based: flag fires iff keyword present; score = sum of unique weights |
-| `tests/scoring-combine.test.ts` | All six adjustment branches; monotonic floor; DB cap |
-| `tests/scoring-ai.test.ts` | GeminiUnavailableError on timeout / bad JSON; happy-path Zod parse |
-| `tests/conversation.test.ts` | Full engine turns: state transitions, fallback path, dedup |
+| `tests/helpers/gemini.ts` | Shared `GoogleGenAI` mock (success, bad JSON, throw, slow) |
+| `tests/scoring-rules.test.ts` | Flag table, once-per-call, bare-signal triggers |
+| `tests/scoring-combine.test.ts` | Every R5 branch, boundaries 39/40/69/70, cap |
+| `tests/scoring-properties.test.ts` | fast-check properties (see tasks) |
+| `tests/scoring-ai.test.ts` | Gemini config, timeout, zod failure, unknown flags dropped |
+| `tests/reply-guard.test.ts` | Word, sentence and accusation checks |
+| `tests/conversation.test.ts` | `engine()` turns with `lib/db` mocked |
+| `tests/fixtures/scams.json`, `legitimate.json` | 30 labelled transcripts |
+| `tests/fixtures.test.ts` | Runs every fixture through rules and combine |
+| `tests/voice-turn.test.ts` | Route test, mocks `@/lib/conversation` |
+
+Fixture entry shape:
+`{ id, category, caller: string[], safeWordCorrect?: boolean, expectedLevel }`.
+Names are fake. No real phone numbers. Fixtures state the intended level. If
+the rules misjudge one, either fix the rules or mark the entry
+`knownGap: true` with a reason, and run it with `it.fails` so the suite stays
+green and flips when fixed. Never edit `expectedLevel` to match the output.

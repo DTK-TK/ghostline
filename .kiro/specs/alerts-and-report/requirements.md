@@ -1,145 +1,196 @@
-# Requirements — alerts-and-report
+# Requirements: alerts-and-report
 
 ## Overview
 
-When a call reaches MEDIUM or HIGH risk, Ghostline must immediately alert the
-family by SMS and, for HIGH-risk calls, generate a structured fraud report the
-family can use to file a complaint with the Canadian Anti-Fraud Centre (CAFC).
-Nothing is submitted automatically.
+When a call reaches MEDIUM or HIGH risk, Ghostline alerts the family by SMS
+through the telephony provider. After a HIGH call ends, it builds a fraud
+report the family can print or copy into the Canadian Anti-Fraud Centre
+(CAFC) form. Nothing is ever submitted automatically.
+
+Sources of truth: `scam-rules.md` (bands), `privacy.md`, `product.md`,
+`tech.md` (everything external goes through `lib/providers`), `ui.md`.
 
 ---
 
-## R1 — Alert trigger
+## R1. When alerts are sent
 
-`sendAlerts()` must be called for every call that ends at MEDIUM (40–69) or
-HIGH (≥ 70) risk. It must be called from the status webhook (`/api/voice/status`)
-after the call ends, or from the turn route when a terminal HIGH-risk state is
-reached.
+One risk SMS per call per recipient, at the highest level known when it is
+sent:
 
----
+- **HIGH:** immediately, on the first turn or event where the call becomes
+  HIGH, whatever the cause (rules, AI, failed safe word, denied callback).
+- **MEDIUM:** when the call takes a message or ends, so the SMS carries the
+  final safe-word and callback results. If the call becomes HIGH first, the
+  HIGH alert is the one that goes out.
+- **Safety net:** the status webhook (`/api/voice/status`) tries again for any
+  call that ended at MEDIUM or HIGH with no alert sent. `critical` is treated
+  as HIGH. LOW never alerts.
 
-## R2 — Alert recipients
-
-Alerts must be sent to every `family_members` row for the household where
-`gets_alerts = true`. If no such rows exist, `sendAlerts()` must return
-without error.
-
----
-
-## R3 — Primary risk-alert SMS
-
-Each alert recipient must receive one SMS containing:
-
-- The risk level tag (`MEDIUM` or `HIGH`).
-- The caller's claimed identity (or "unknown" if not stated).
-- The amount requested (or "none").
-- The payment method mentioned (or "none").
-- The safe-word result (`passed`, `failed`, or `not asked`).
-- The callback result (`denied`, `confirmed`, `no_answer`, or `not initiated`).
-- A direct link to the call detail page on the dashboard:
-  `{PUBLIC_BASE_URL}/calls/{call.id}`.
-
-The SMS body must not exceed 320 characters (two segments). Values supplied
-by the caller (identity, amount, payment method) must be truncated if the
-total would exceed the limit.
+A MEDIUM alert already sent is not followed by a second alert if the call
+later becomes HIGH. The dashboard link shows the live state.
 
 ---
 
-## R4 — Money-move checklist SMS
+## R2. Recipients
 
-When a payment method is mentioned on the call (`calls.payment_method` is not
-null), a second SMS must be sent to the same recipients containing a plain-
-language reminder that no legitimate bank, police officer, or family member
-will ever ask for gift cards, cryptocurrency, wire transfers, or a courier
-pickup. The message must name the primary callback contact so the senior knows
-who to call directly.
+Every `family_members` row of the household with `gets_alerts = true`. With
+no such rows, alerting does nothing and does not fail.
 
 ---
 
-## R5 — Idempotency
+## R3. Risk SMS
 
-`sendAlerts()` must be safe to call more than once for the same call. Before
-sending each message, it must check `call_events` for an existing
-`alert_sent` event keyed by `{alert_type}:{recipient_phone}`. If a matching
-event exists, that message must be skipped.
+One SMS per recipient. Template:
 
----
+```
+GHOSTLINE {LEVEL}: Caller claims to be {who}. Amount: {amount}. Payment: {payment}. Safe word: {safe_word}. Callback: {callback}. {dashboard_link}
+```
 
-## R6 — Alert event logging
-
-After each SMS is sent successfully, the system must append an `alert_sent`
-event to `call_events` with:
-
-- `channel = "sms"`
-- `recipient` = the recipient's E.164 phone number
-- `alert_type` = `"risk"` or `"checklist"`
-
-Phone numbers in this payload must not appear in `console.log` output.
-
----
-
-## R7 — Fraud report generation
-
-For every HIGH-risk call, `buildAndStoreReport()` from `lib/report.ts` must
-be called after the call ends. The report must be stored once (idempotent:
-if a row already exists for the call it is returned as-is) in
-`fraud_reports.report` as JSONB.
-
-The report must include:
-
-- `date_time`, `caller_number`, `claimed_identity`.
-- `scam_type` — a human-readable guess derived from the flags and claimed
-  identity (e.g. "grandparent scam", "CRA impersonation").
-- `amount` and `payment_method` from the call record.
-- `red_flags` — array of `{ flag_id, detail }` from `call_events`.
-- `safe_word_result` — `"passed" | "failed" | "not asked"`.
-- `callback_result` — `"denied" | "confirmed" | "no_answer" | "not initiated"`.
-- `transcript` — full conversation from `call_events` of type `transcript`.
-- `risk_score` and `risk_level`.
-- `summary` — Gemini's one-sentence summary from `calls.summary`.
+- `LEVEL` is `MEDIUM` or `HIGH`.
+- `who`, `amount`, `payment` show `unknown` or `none` when empty.
+- `safe_word` is `passed`, `failed` or `not asked`.
+- `callback` is `denied`, `confirmed`, `no_answer`, `pending` or
+  `not initiated`.
+- `dashboard_link` is `{PUBLIC_BASE_URL}/calls/{call.id}`.
+- The body is at most 320 characters. Caller-supplied values are shortened
+  first (`who` 40, `amount` 20, `payment` 20 characters). The link is never
+  cut off.
+- Caller-supplied values are cleaned before use: control characters, URLs and
+  domain-like text are removed, and characters outside the GSM-7 alphabet are
+  replaced, so a caller cannot put a link or a unicode body (smaller segments)
+  into the family's SMS.
 
 ---
 
-## R8 — CAFC text export
+## R4. Money-move checklist SMS
 
-`buildCafcText(report)` must return a plain-text block formatted for the CAFC
-online reporting form at antifraudcentre-centreantifraude.ca. The block must
-include all report fields in a clearly labelled, human-readable format. It
-must end with the CAFC report URL.
+When a payment method was mentioned, each recipient gets a second SMS, also
+at most 320 characters. It is a short list of steps, not a general warning:
 
-The text must never be submitted automatically. It must only be presented to
-the family for manual copy-paste.
+1. call the family contact first (named, from the callback target);
+2. do not send more money;
+3. if money already moved, call the bank or card issuer now (for a gift card:
+   keep the card and receipt and call the issuer; for crypto, wire or
+   e-transfer: ask the bank to stop or recall it; for a courier pickup: hand
+   over nothing);
+4. keep receipts, card numbers and this call's report link.
 
----
-
-## R9 — Report page
-
-`/reports/[id]` must display the full fraud report in a print-friendly layout
-(white background, Tailwind `print:` variants to hide action buttons). The
-page must include:
-
-- A summary section with all structured fields.
-- The red-flags list.
-- The full transcript.
-- A client-side "Copy for CAFC report" button that copies `buildCafcText()`
-  output to the clipboard.
-- A print button.
-- A legal footer noting that nothing has been submitted automatically and
-  linking to the CAFC report form.
+The step text is picked from the payment method. The message never accuses
+anyone and contains no caller-supplied text.
 
 ---
 
-## R10 — No auto-submission
+## R5. At most once
 
-The system must never automatically submit any data to police, CAFC, or any
-third-party reporting service. The family must initiate all external reporting.
-Fraud reports are for the family's reference only.
+A given (call, recipient, alert type) is sent at most once, including when:
+
+- the same HIGH level is reported on many turns;
+- the turn route and the status webhook both ask;
+- Twilio retries a webhook;
+- two requests run at the same time.
+
+The system records its claim before sending. A send that fails is marked
+failed and may be retried later (the status webhook is the retry). A send
+that succeeded is never repeated.
 
 ---
 
-## R11 — Privacy
+## R6. Alert events
 
-The alert SMS body must not log API keys, auth tokens, or full phone numbers
-in `console.log` or `console.error`. Phone numbers may appear in the SMS body
-(the recipient's own number is on their own device) but must be masked if
-logged server-side.
+Each alert writes an `alert_sent` event with `channel: "sms"`, `alert_type`
+(`risk` or `checklist`), `recipient_id` (the family member id), `recipient`
+(masked phone), `level` and `status` (`sending`, `sent`, `failed`). The
+payload schema in `lib/db.ts` declares `alert_type`. Only `sent` events show
+on the dashboard timeline.
+
+---
+
+## R7. Failure isolation
+
+- One recipient's failed SMS does not stop the others.
+- An alert failure never breaks the caller's TwiML response and never throws
+  into a webhook. It is logged with masked numbers.
+- Alerts run inside the webhook's 10-second budget (parallel sends, short
+  timeout) or after the response where the platform allows it.
+
+---
+
+## R8. Evidence the alert and report need
+
+The call record keeps what the caller said, so the alert and report can show
+it:
+
+- `claimed_identity` (exists), and new `requested_amount` and
+  `payment_method` on `calls`.
+- The engine writes the latest non-empty value from the AI. When the AI is
+  unavailable, the rules layer extracts the payment method and amount. A later
+  empty value never erases an earlier one.
+- Each `red_flag` event stores `quote`: the caller's words that triggered it.
+
+---
+
+## R9. Fraud report
+
+After a HIGH call ends, one report is built and stored for the call (the
+status webhook is the trigger). A repeated trigger returns the existing report
+and never creates a second row. It contains:
+
+- date and time (ISO, with time zone), caller number, claimed identity;
+- scam type (one shared heuristic, whole-word matching);
+- amount, payment method;
+- red flags, each with its quote;
+- safe-word result, callback result;
+- full transcript, in order (a safe-word attempt appears as redacted text);
+- risk score and level, and the one-sentence summary.
+
+---
+
+## R10. CAFC text
+
+`buildCafcText()` returns a plain-text block with every report field, in the
+labelled order used today, ending with the CAFC reporting URL. It is shown
+for the family to copy. It is never sent anywhere.
+
+---
+
+## R11. Report page `/reports/[id]`
+
+- Shows summary, red flags with quotes, transcript, and the CAFC text in a
+  visible text area with a "Copy for CAFC report" button and a Print button.
+  Copy gives visible confirmation. If clipboard access fails the text can
+  still be selected by hand.
+- A print layout (white background, action buttons hidden). On screen it
+  follows `ui.md`: dark theme, text at least 16 px, shadcn/ui components,
+  risk shown with both colour (LOW green-500, MEDIUM amber-500, HIGH red-500)
+  and a text label.
+- Times show a time zone (viewer's local time and UTC).
+- An id that is not a valid UUID or has no report gives a 404, not an error
+  page. The page is `noindex` and not cached.
+- Footer: "Nothing has been submitted automatically" and the CAFC link.
+- Access control follows the dashboard's (dashboard-and-simulator spec). Until
+  then the unguessable report id is the only protection (open decision).
+
+---
+
+## R12. Never submit automatically
+
+No code sends report data to police, CAFC or any third party. The family
+files any report themselves.
+
+---
+
+## R13. Privacy
+
+- No full phone number, API key, auth token or SMS body in `console.*` output.
+  Phone numbers are masked.
+- The safe word, its hash and attempts never appear in alerts, reports or
+  logs.
+- Demo data uses fake names and teammates' verified numbers only.
+
+---
+
+## R14. Verification
+
+Tests run with no Twilio, Gemini or Supabase credentials. The telephony
+provider is mocked. Required: alerts are sent once per call even when HIGH is
+reported on several turns or at the same time.
