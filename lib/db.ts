@@ -43,11 +43,13 @@ export const HouseholdSchema = z.object({
   senior_phone: z.string(),
   safe_word_hash: z.string(),
   time_waster_enabled: z.boolean(),
+  is_demo: z.boolean().default(false),
   created_at: z.string().datetime(),
 });
 
 export const HouseholdInsertSchema = HouseholdSchema.omit({ id: true, created_at: true }).extend({
   time_waster_enabled: z.boolean().optional(),
+  is_demo: z.boolean().optional(),
 });
 
 export type HouseholdRow = z.infer<typeof HouseholdSchema>;
@@ -127,9 +129,11 @@ export const CallSchema = z.object({
   started_at: z.string().datetime(),
   ended_at: z.string().datetime().nullable(),
   summary: z.string().nullable(),
+  is_simulated: z.boolean().default(false),
 });
 
 export const CallInsertSchema = CallSchema.omit({ id: true, started_at: true }).extend({
+  is_simulated: z.boolean().optional(),
   state: CallStateSchema.optional(),
   claimed_identity: z.string().optional(),
   risk_score: z.number().int().min(0).max(100).optional(),
@@ -337,6 +341,41 @@ export async function getCallBySid(callSid: string): Promise<CallRow | null> {
   return data ? CallSchema.parse(data) : null;
 }
 
+export async function getCallById(id: string): Promise<CallRow | null> {
+  const { data, error } = await adminDb()
+    .from("calls")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? CallSchema.parse(data) : null;
+}
+
+/** Newest call with no ended_at that started within `windowMs` of `now`. */
+export async function getActiveCall(now: Date = new Date(), windowMs = 15 * 60 * 1000): Promise<CallRow | null> {
+  const since = new Date(now.getTime() - windowMs).toISOString();
+  const { data, error } = await adminDb()
+    .from("calls")
+    .select("*")
+    .is("ended_at", null)
+    .gte("started_at", since)
+    .order("started_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? CallSchema.parse(data) : null;
+}
+
+export async function getFraudReportId(callId: string): Promise<string | null> {
+  const { data, error } = await adminDb()
+    .from("fraud_reports")
+    .select("id")
+    .eq("call_id", callId)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? String((data as { id: unknown }).id) : null;
+}
+
 export async function updateCall(
   callSid: string,
   patch: Partial<CallInsert>,
@@ -367,6 +406,88 @@ export async function getRecentCalls(
     .limit(limit);
   if (error) throw error;
   return (data ?? []).map((row) => CallSchema.parse(row));
+}
+
+/**
+ * Calls of one household, newest first. `before` is an exclusive started_at
+ * cursor (ISO string); rows with started_at < before are returned.
+ */
+export async function getCallsPage(
+  householdId: string,
+  limit: number,
+  before?: string,
+): Promise<CallRow[]> {
+  let q = adminDb()
+    .from("calls")
+    .select("*")
+    .eq("household_id", householdId)
+    .order("started_at", { ascending: false })
+    .limit(limit);
+  if (before) q = q.lt("started_at", before);
+  const { data, error } = await q;
+  if (error) throw error;
+  return (data ?? []).map((row: unknown) => CallSchema.parse(row));
+}
+
+/** The household the app serves: the demo household, else the oldest one. */
+export async function getServedHouseholdId(): Promise<string | null> {
+  const demo = await adminDb()
+    .from("households")
+    .select("id")
+    .eq("is_demo", true)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (demo.error) throw demo.error;
+  if (demo.data) return String((demo.data as { id: unknown }).id);
+  const any = await adminDb()
+    .from("households")
+    .select("id")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (any.error) throw any.error;
+  return any.data ? String((any.data as { id: unknown }).id) : null;
+}
+
+/** The demo household (is_demo = true), oldest first, or null. No fallback. */
+export async function getDemoHousehold(): Promise<HouseholdRow | null> {
+  const { data, error } = await adminDb()
+    .from("households")
+    .select("*")
+    .eq("is_demo", true)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? HouseholdSchema.parse(data) : null;
+}
+
+/** started_at of simulated calls of one household since `sinceIso`, newest first. */
+export async function getSimulatedCallStarts(householdId: string, sinceIso: string): Promise<string[]> {
+  const { data, error } = await adminDb()
+    .from("calls")
+    .select("started_at")
+    .eq("household_id", householdId)
+    .eq("is_simulated", true)
+    .gte("started_at", sinceIso)
+    .order("started_at", { ascending: false })
+    .limit(100);
+  if (error) throw error;
+  return ((data ?? []) as { started_at: string }[]).map((r) => r.started_at);
+}
+
+/** One query: call_id -> fraud report id for the given calls. */
+export async function getFraudReportIds(callIds: string[]): Promise<Record<string, string>> {
+  if (callIds.length === 0) return {};
+  const { data, error } = await adminDb()
+    .from("fraud_reports")
+    .select("id, call_id")
+    .in("call_id", callIds);
+  if (error) throw error;
+  const out: Record<string, string> = {};
+  for (const r of (data ?? []) as { id: string; call_id: string }[]) out[r.call_id] = r.id;
+  return out;
 }
 
 // ---------------------------------------------------------------------------

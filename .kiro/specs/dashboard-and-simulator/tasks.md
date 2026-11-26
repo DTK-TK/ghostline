@@ -40,7 +40,7 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
     automated test (task 22)._
   - _MVP, done: Already built and reachable._
 
-- [ ] **3. Extract `processTurn()` and `finalizeCall()`.** `lib/turn.ts` and
+- [x] **3. Extract `processTurn()` and `finalizeCall()`.** `lib/turn.ts` and
   `lib/finalize-call.ts`; `/api/voice/turn`, `/api/dev/phone/turn` and the
   status route become thin adapters. Needs conversation-and-scoring task 1.
   - _Proof: `tests/voice-turn.test.ts` and `tests/voice-status.test.ts` still
@@ -49,7 +49,7 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
   - _MVP, build item 2: All routes must share one turn path._
   - _Re-plan: Needs conversation-and-scoring task 1. Includes the dev phone turn route and the status route._
 
-- [ ] **1. Theme and shell.** Define the shadcn theme tokens in
+- [x] **1. Theme and shell.** Define the shadcn theme tokens in
   `app/globals.css` (dark values for background, foreground, card, primary,
   muted, border, input, ring, destructive) and always use the dark theme (class
   `dark` on `<html>`, remove the `prefers-color-scheme` switch). Fix the
@@ -60,7 +60,7 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
   - _MVP, build item 3: Theme tokens and dark mode are shared by every page._
   - _Re-plan: Replace app/page.tsx with redirect to /live._
 
-- [ ] **2. Decide and build access control (R1).** Pick the sign-in method
+- [x] **2. Decide and build access control (R1).** Pick the sign-in method
   (default in design.md). Migration `0004_dashboard.sql`: enable RLS on all
   tables, `calls_read` and `events_read` policies, `family_members.user_id`,
   `households.is_demo`. Add `proxy.ts` (read the Next.js proxy doc first) and
@@ -73,24 +73,24 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
   - _MVP, build item 4: Access control, now one passcode._
   - _Re-plan: Decision: migration 0004 enables RLS on every table with NO policies. proxy.ts checks DASHBOARD_PASSCODE and stores a derived value in an httpOnly cookie; it covers all dashboard pages, /calls/*, /reports/*, settings routes and the live polling route. Twilio webhooks (/api/voice/*, /api/sms/*) stay outside it and keep the X-Twilio-Signature check. Deferred: Supabase Auth, anonymous sessions, signed SMS tokens, family_members.user_id, calls_read/events_read policies. Proof changes to: the anon key reads no rows from any table; a request without the cookie is redirected to the passcode page; a wrong passcode is refused._
 
-- [ ] **14. Migration columns.** `calls.is_simulated`, `households.is_demo`;
+- [x] **14. Migration columns.** `calls.is_simulated`, `households.is_demo`;
   seed marks the demo household `is_demo = true`; schema types updated.
   - _Proof: `supabase db reset` runs clean; `CallSchema` parses a row with the
     new column._
   - _MVP, build item 4: The is_demo and is_simulated columns ship in the same migration as RLS._
 
-- [ ] **4. `lib/live-status.ts`.** `deriveLiveStatus(call, events, now)`
+- [x] **4. `lib/live-status.ts`.** `deriveLiveStatus(call, events, now)`
   (pure), using `call-evidence.ts` and `timeWastedSummary`.
   - _Proof: `tests/live-status.test.ts`: safe word asked, passed, failed with
     attempts; callback calling, pending, denied; timer running then frozen; no
     attempt text appears in the output._
   - _MVP, build item 11: Pure live-status logic for the Live page._
 
-- [ ] **25. Live polling route and hook (added in this re-plan).** `GET /api/live?callId=` (passcode-checked, reads with the service role, returns call, events and report id) and a `usePolledCall(callId, 2000)` hook used by `/live` and `/calls/[id]`. Merge by event id (dedupe, sort by `created_at`). Show "Last updated" and "Reconnecting..." after two failed polls. Stop polling once the call has ended and the final state was fetched.
+- [x] **25. Live polling route and hook (added in this re-plan).** `GET /api/live?callId=` (passcode-checked, reads with the service role, returns call, events and report id) and a `usePolledCall(callId, 2000)` hook used by `/live` and `/calls/[id]`. Merge by event id (dedupe, sort by `created_at`). Show "Last updated" and "Reconnecting..." after two failed polls. Stop polling once the call has ended and the final state was fetched.
   - _Proof: `tests/live-poll.test.ts`: duplicate event ignored, out-of-order events sorted, no cookie gives 401 or a redirect; manual: two tabs update within about 2 seconds._
   - _MVP, build item 11: Polling replaces Realtime (new task added in this re-plan)._
 
-- [ ] **5. Header and navigation.** `app/(dashboard)/layout.tsx` with the
+- [x] **5. Header and navigation.** `app/(dashboard)/layout.tsx` with the
   `CassetteTape` icon from `lucide-react`, "GHOSTLINE" in `font-mono`, nav
   links, and the unread dot with visible "message" text, `motion-safe:animate-pulse`.
   - _Proof: manual: header on all three pages; with reduced motion on, the dot
@@ -98,7 +98,7 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
   - _MVP, build item 11: The header and nav frame the pages._
   - _Re-plan: Without the unread dot (task 13 is deferred)._
 
-- [ ] **7. Live page `/live`.** Transcript with auto-scroll and "Jump to latest",
+- [x] **7. Live page `/live`.** Transcript with auto-scroll and "Jump to latest",
   red-flag chips with quotes, risk meter (`role="meter"`, marks at 40 and 70,
   label), safe word status, callback status, time-wasted timer, state, SIMULATED
   badge, idle state, connection indicator. Text 16 px or larger.
@@ -107,21 +107,21 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
   - _MVP, build item 11: The Live page is the demo screen._
   - _Re-plan: Decision: polls the server route every 2 seconds, no Realtime. The connection indicator shows the last update time._
 
-- [ ] **8. Calls page `/calls`.** Table with all columns, masked numbers, SIMULATED
+- [x] **8. Calls page `/calls`.** Table with all columns, masked numbers, SIMULATED
   badge, Details and Report links, "Load more" (25 rows), live prepend.
   - _Proof: manual: a new call appears at the top without a reload; a HIGH call
     shows a Report link._
   - _MVP, build item 12: The Calls page lists calls and report links._
   - _Re-plan: Loaded on page view; no live prepend (that came from Realtime)._
 
-- [ ] **9. Call details `/calls/[id]`.** Everything in R6, uuid validation and
+- [x] **9. Call details `/calls/[id]`.** Everything in R6, uuid validation and
   404, marks the call viewed, live updates while active. Requires the report
   page work in alerts-and-report.
   - _Proof: manual: open the link from an alert SMS; `/calls/not-a-uuid` is 404._
   - _MVP, build item 12: The call details page opens from the alert link._
   - _Re-plan: Polls the server route every 2 seconds while the call is active._
 
-- [ ] **15. Simulator core.** `lib/simulator/scenarios.ts` (ids into the 30
+- [x] **15. Simulator core.** `lib/simulator/scenarios.ts` (ids into the 30
   fixtures; needs conversation-and-scoring task 4), `startSimulation`,
   `nextStep` (server-owned text, index check, scripted callback answer, scripted
   safe word from `SIMULATOR_SAFE_WORD`).
@@ -131,7 +131,7 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
   - _MVP, build item 13: Simulator scenarios come from tests/fixtures._
   - _Re-plan: Decision: scenario ids point at the 30 fixtures in tests/fixtures; import the JSON, do not copy it. Needs conversation-and-scoring task 4._
 
-- [ ] **16. Simulator routes and button.** `POST /api/simulate` and
+- [x] **16. Simulator routes and button.** `POST /api/simulate` and
   `/api/simulate/step`: `ENABLE_SIMULATOR` gate (404), demo household only (403),
   limits (429), `SIM_<scenario>_<uuid>` call sid, `finalizeCall` at the end. The
   Live page button with a scenario picker, a 1.5-second `setTimeout` between
@@ -141,7 +141,7 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
     finalised with a report for HIGH; manual in task 24._
   - _MVP, build item 13: The Simulate button with is_demo gate and rate limit._
 
-- [ ] **17. SIMULATED labelling downstream.** SMS prefix "SIMULATED:" (counts toward
+- [x] **17. SIMULATED labelling downstream.** SMS prefix "SIMULATED:" (counts toward
   the 320 limit), report header and CAFC text, badges on Live, Calls and details.
   - _Proof: `tests/alerts.test.ts` (prefix, length), `tests/report.test.ts`
     (header), manual: badges visible._

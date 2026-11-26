@@ -1,0 +1,427 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "**3. Extract `processTurn()` and `finalizeCall()`.** `lib/turn.ts` and": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687404729
+      },
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687417693
+      },
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687556284
+      }
+    ],
+    "**1. Theme and shell.** Define the shadcn theme tokens in": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687405041
+      },
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687558093
+      },
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687608326
+      }
+    ],
+    "**2. Decide and build access control (R1).** Pick the sign-in method": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687405226
+      },
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687612449
+      },
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687724949
+      }
+    ],
+    "**14. Migration columns.** `calls.is_simulated`, `households.is_demo`;": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687405379
+      },
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687726910
+      },
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687777300
+      }
+    ],
+    "**4. `lib/live-status.ts`.** `deriveLiveStatus(call, events, now)`": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687405602
+      },
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687779313
+      },
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687864548
+      }
+    ],
+    "**25. Live polling route and hook (added in this re-plan).** `GET /api/live?callId=` (passcode-checked, reads with the service role, returns call, events and report id) and a `usePolledCall(callId, 2000)` hook used by `/live` and `/calls/[id]`. Merge by event id (dedupe, sort by `created_at`). Show \"Last updated\" and \"Reconnecting...\" after two failed polls. Stop polling once the call has ended and the final state was fetched.": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687405868
+      },
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687867042
+      },
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687977439
+      }
+    ],
+    "**5. Header and navigation.** `app/(dashboard)/layout.tsx` with the": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687406077
+      },
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687979443
+      },
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795688057203
+      }
+    ],
+    "**7. Live page `/live`.** Transcript with auto-scroll and \"Jump to latest\",": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687406262
+      },
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795688060116
+      },
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795688167681
+      }
+    ],
+    "**8. Calls page `/calls`.** Table with all columns, masked numbers, SIMULATED": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687406423
+      },
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795688169723
+      },
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795688268658
+      }
+    ],
+    "**9. Call details `/calls/[id]`.** Everything in R6, uuid validation and": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687406606
+      },
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795688270713
+      },
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795688366449
+      }
+    ],
+    "**15. Simulator core.** `lib/simulator/scenarios.ts` (ids into the 30": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687406737
+      },
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795688369671
+      },
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795688551273
+      }
+    ],
+    "**16. Simulator routes and button.** `POST /api/simulate` and": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687406877
+      },
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795688555311
+      },
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795688684823
+      }
+    ],
+    "**17. SIMULATED labelling downstream.** SMS prefix \"SIMULATED:\" (counts toward": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687407020
+      },
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795688688373
+      },
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795688748589
+      }
+    ],
+    "**24. Manual check: Simulate, end to end.** With `MOCK_TELEPHONY=true`,": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687407221
+      },
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795688756146
+      }
+    ],
+    "**18. Startup guard for providers.** `lib/providers/assert.ts` and": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687407440
+      }
+    ],
+    "**19. Dev tools gate.** `lib/dev-gate.ts` `devToolsEnabled()` used by": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687407670
+      }
+    ],
+    "**20. Dev phone callback buttons.** Labels and digits to match the prompt:": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687407793
+      }
+    ],
+    "**21. MockTelephony in the loop.** Once `alertCall` is wired": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687407932
+      }
+    ],
+    "**6. Realtime client and merge.** `lib/supabase-browser.ts` (one client per": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687408162
+      }
+    ],
+    "**10. Settings data layer.** Add `updateHousehold`, contact and member": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687408305
+      }
+    ],
+    "**11. Settings routes.** `app/api/settings/household`, `safe-word`,": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687408443
+      }
+    ],
+    "**12. Settings page.** Family name, write-only safe word (new and confirm,": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687408612
+      }
+    ],
+    "**13. Unread dot logic.** `lib/unread.ts` plus the client component.": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687408777
+      }
+    ],
+    "**22. Dev phone and inbox tests.** Route tests for start, turn, callback-answer": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687408925
+      }
+    ],
+    "**23. Accessibility pass.** Names on every control, `aria-live=\"polite\"` on the": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687409073
+      }
+    ],
+    "**R1** Who can see what. No RLS, no sign-in. Task 2.": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687409263
+      }
+    ],
+    "**R2** Layout and theme. No header; theme tokens missing. Tasks 1, 5.": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687409465
+      }
+    ],
+    "**R3** Live page. Does not exist. Tasks 4, 7.": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687409627
+      }
+    ],
+    "**R4** Real-time behaviour. No client code. Task 6.": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687409778
+      }
+    ],
+    "**R5** Calls page. Does not exist. Task 8.": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687409975
+      }
+    ],
+    "**R6** Call details. Does not exist. Task 9.": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687410121
+      }
+    ],
+    "**R7** Settings. Does not exist. Tasks 10, 11, 12.": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687410270
+      }
+    ],
+    "**R8** Unread alerts. Does not exist. Task 13.": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687410443
+      }
+    ],
+    "**R9** Simulate button. Empty `app/api/simulate`. Tasks 15, 16.": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687410941
+      }
+    ],
+    "**R10** Simulator safety and labelling. Tasks 14, 16, 17.": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687411305
+      }
+    ],
+    "**R11** Test mode and providers. Factory and lazy guard exist; no startup": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687411542
+      }
+    ],
+    "**R12** Mock inbox. Read side exists (done above); needs writers and masking.": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687411829
+      }
+    ],
+    "**R13** `/dev/phone`. Typed and spoken caller, inbox panel, debug panel and": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687412143
+      }
+    ],
+    "**R14** Dev tools gate. `VERCEL_ENV` only. Task 19.": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687412381
+      }
+    ],
+    "**R15** Accessibility. Task 23.": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687412624
+      }
+    ],
+    "**R16** Verification. No tests for any of this. Tasks 4, 6, 11, 13, 15, 18, 19, 22, 24.": [
+      {
+        "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795687412846
+      }
+    ]
+  }
+}

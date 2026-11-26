@@ -62,6 +62,8 @@ export const FraudReportDataSchema = z.object({
   risk_level: z.string(),
   /** Gemini-generated one-sentence summary. */
   summary: z.string().nullable(),
+  /** True when the call came from the simulator. Never file a simulated report. */
+  is_simulated: z.boolean().default(false),
 });
 
 export type FraudReportData = z.infer<typeof FraudReportDataSchema>;
@@ -178,6 +180,7 @@ export async function buildAndStoreReport(callId: string): Promise<FraudReportRo
     risk_score:       call.risk_score ?? 0,
     risk_level:       call.risk_level ?? "high",
     summary:          call.summary,
+    is_simulated:     call.is_simulated,
   });
 
   return createFraudReport({ call_id: callId, report: report as Record<string, unknown> });
@@ -215,7 +218,15 @@ export async function loadReport(reportId: string): Promise<{
  * Never submitted automatically.
  */
 export function buildCafcText(report: FraudReportData): string {
+  const simulatedBanner: string[] = report.is_simulated
+    ? [
+        "*** SIMULATED: THIS IS A TEST CALL FROM THE GHOSTLINE SIMULATOR. ***",
+        "*** DO NOT FILE THIS REPORT. NO REAL FRAUD OCCURRED. ***",
+        "",
+      ]
+    : [];
   const lines: string[] = [
+    ...simulatedBanner,
     "=== CAFC FRAUD REPORT (copy and paste into the online form) ===",
     "",
     `Date and time:       ${new Date(report.date_time).toLocaleString("en-CA")}`,
@@ -240,6 +251,7 @@ export function buildCafcText(report: FraudReportData): string {
     ),
     "",
     "=== END OF REPORT ===",
+    ...(report.is_simulated ? ["SIMULATED: do not file this report."] : []),
     "Report a fraud: https://antifraudcentre-centreantifraude.ca/reportincident-signalerincident-eng.htm",
   ];
   return lines.join("\n");

@@ -82,8 +82,11 @@ export function buildAlertSms(
     `Asked for ${amt} via ${pay}. ` +
     `Safe word: ${sw}. Callback: ${cb}. ${dashboardUrl}`;
 
-  // Trim to 320 characters if the caller-supplied values are long.
-  return body.length <= 320 ? body : body.slice(0, 317) + "…";
+  // The SIMULATED prefix counts toward the limit, so truncate the rest.
+  const prefix = context.call.is_simulated ? "SIMULATED: " : "";
+  const room = 320 - prefix.length;
+  const trimmed = body.length <= room ? body : body.slice(0, room - 1) + "…";
+  return prefix + trimmed;
 }
 
 /**

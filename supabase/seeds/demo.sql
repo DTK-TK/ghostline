@@ -32,8 +32,8 @@ BEGIN
   v_hash := crypt(v_safe_word, gen_salt('bf', 12));
 
   -- Insert household.
-  INSERT INTO households (family_name, senior_phone, safe_word_hash, time_waster_enabled)
-  VALUES ('Sun', '+15550000000', v_hash, true)
+  INSERT INTO households (family_name, senior_phone, safe_word_hash, time_waster_enabled, is_demo)
+  VALUES ('Sun', '+15550000000', v_hash, true, true)
   RETURNING id INTO v_household_id;
 
   -- Insert family members (both get alerts; member 1 accepts callback transfers).

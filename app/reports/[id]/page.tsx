@@ -36,6 +36,15 @@ export default async function ReportPage({ params }: PageParams) {
     <main className="min-h-screen bg-white p-8 max-w-3xl mx-auto font-sans">
       {/* Print header */}
       <header className="mb-8 border-b pb-4">
+        {data.is_simulated && (
+          <p
+            role="note"
+            className="mb-4 border-2 border-red-600 bg-red-50 p-3 text-base font-bold text-red-800"
+          >
+            SIMULATED: this report comes from a test call. Do not file it with the
+            police or the CAFC.
+          </p>
+        )}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">

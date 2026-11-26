@@ -15,7 +15,8 @@
  */
 
 import { validateTwilioRequest } from "@/lib/twilio-validate";
-import { getCallBySid, updateCall } from "@/lib/db";
+import { getCallBySid } from "@/lib/db";
+import { finalizeCall } from "@/lib/finalize-call";
 import type { CallState, CallOutcome } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -50,17 +51,7 @@ export async function POST(req: Request): Promise<Response> {
 
     const mapping = STATUS_MAP[callStatus] ?? STATUS_MAP["completed"];
 
-    // Only overwrite outcome if the turn handler hasn't already set one
-    // (e.g. scam_blocked or time_wasted already wrote a meaningful outcome).
-    const patch: Parameters<typeof updateCall>[1] = {
-      state: mapping.state,
-      ended_at: new Date().toISOString(),
-    };
-    if (!existing.outcome) {
-      patch.outcome = mapping.outcome;
-    }
-
-    await updateCall(callSid, patch);
+    await finalizeCall(existing, mapping);
 
     return new Response(null, { status: 204 });
   } catch {
