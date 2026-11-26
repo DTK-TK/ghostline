@@ -72,6 +72,22 @@ describe("POST /api/voice/turn: nextState to TwiML", () => {
     expect(xml).toContain("Oh dear, where are my glasses?");
   });
 
+  it("callback just started: holds the caller (Say, Pause 10, Redirect hold-check?n=1)", async () => {
+    engine.mockResolvedValue({
+      reply: "Please hold one moment.",
+      nextState: "screening",
+      riskUpdate: { score: 0, level: "low" },
+      hold: true,
+    });
+
+    const xml = await (await turn()).text();
+
+    expect(parseTwiml(xml)).toEqual(["Say", "Pause", "Redirect"]);
+    expect(xml).toContain("Please hold one moment.");
+    expect(xml).toContain('length="10"');
+    expect(xml).toContain(`${BASE_URL}/api/voice/hold-check?n=1`);
+  });
+
   it("verified: dials the senior", async () => {
     engineReturns("verified");
 
@@ -134,15 +150,97 @@ describe("POST /api/voice/turn: persistence", () => {
     );
   });
 
-  it("never lowers the stored risk score", async () => {
-    db.getCallBySid.mockResolvedValue(callFixture({ risk_score: 60 }));
-    engineReturns("screening", "low", 10);
+  it("stores the engine's score as is: the engine owns the floor and the credits (R11)", async () => {
+    // A lower score only comes from a safe-word or confirmed-callback credit,
+    // which a second floor here would cancel.
+    db.getCallBySid.mockResolvedValue(callFixture({ risk_score: 45 }));
+    engineReturns("verified", "low", 5);
 
     await turn();
 
     expect(db.updateCall).toHaveBeenCalledWith(
       "CA_TEST_0001",
-      expect.objectContaining({ risk_score: 60 }),
+      expect.objectContaining({ risk_score: 5, risk_level: "low" }),
+    );
+  });
+});
+
+describe("POST /api/voice/turn: engine hangup, outcome and stateChangeExtra", () => {
+  const ENDED = "2026-12-01T10:03:00.000Z";
+  const EXIT = { started_at: "2026-12-01T10:00:00.000Z", ended_at: ENDED, seconds: 180, reason: "limit" };
+
+  it("hangup: true gives Say then Hangup with the goodbye line", async () => {
+    db.getCallBySid.mockResolvedValue(callFixture({ state: "time_wasted" }));
+    engine.mockResolvedValue({
+      reply: "Oh dear, I must go feed Marmalade. Goodbye!",
+      nextState: "completed",
+      riskUpdate: { score: 90, level: "high" },
+      hangup: true,
+      outcome: "time_wasted",
+      stateChangeExtra: EXIT,
+    });
+
+    const xml = await (await turn()).text();
+
+    expect(parseTwiml(xml)).toEqual(["Say", "Hangup"]);
+    expect(xml).toContain("Marmalade");
+  });
+
+  it("appendEvent receives the merged state_change payload and updateCall the outcome", async () => {
+    db.getCallBySid.mockResolvedValue(callFixture({ state: "time_wasted" }));
+    engine.mockResolvedValue({
+      reply: "Goodbye!",
+      nextState: "completed",
+      riskUpdate: { score: 90, level: "high" },
+      hangup: true,
+      outcome: "time_wasted",
+      stateChangeExtra: EXIT,
+    });
+
+    await turn();
+
+    expect(db.appendEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "state_change",
+        payload: { type: "state_change", from: "time_wasted", to: "completed", ...EXIT },
+      }),
+    );
+    expect(db.updateCall).toHaveBeenCalledWith(
+      "CA_TEST_0001",
+      expect.objectContaining({ state: "completed", outcome: "time_wasted", ended_at: ENDED }),
+    );
+  });
+
+  it("entry event carries started_at and the call keeps going", async () => {
+    engine.mockResolvedValue({
+      reply: "Oh my, hold on dear, I can't find my glasses.",
+      nextState: "time_wasted",
+      riskUpdate: { score: 90, level: "high" },
+      stateChangeExtra: { started_at: "2026-12-01T10:00:00.000Z" },
+    });
+
+    const xml = await (await turn()).text();
+
+    expect(parseTwiml(xml)).toEqual(["Gather", "Say", "Redirect"]);
+    expect(db.appendEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: { type: "state_change", from: "screening", to: "time_wasted", started_at: "2026-12-01T10:00:00.000Z" },
+      }),
+    );
+    expect(db.updateCall).toHaveBeenCalledWith(
+      "CA_TEST_0001",
+      expect.not.objectContaining({ outcome: expect.anything(), ended_at: expect.anything() }),
+    );
+  });
+
+  it("entering scam_blocked sets outcome blocked and ended_at", async () => {
+    engineReturns("scam_blocked", "high", 90);
+
+    await turn();
+
+    expect(db.updateCall).toHaveBeenCalledWith(
+      "CA_TEST_0001",
+      expect.objectContaining({ outcome: "blocked", ended_at: expect.any(String) }),
     );
   });
 });
@@ -172,6 +270,43 @@ describe("POST /api/voice/turn: silence", () => {
     expect(parseTwiml(xml)).toEqual(["Say", "Record"]);
     expect(engine).not.toHaveBeenCalled();
     expect(db.updateCall).toHaveBeenCalledWith("CA_TEST_0001", { state: "completed", outcome: "dropped" });
+  });
+
+  it("two silent turns while the persona is active: goodbye, hang up, exit event once, outcome time_wasted", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-12-01T10:00:07.000Z"));
+    try {
+      const entry = {
+        type: "state_change",
+        payload: { type: "state_change", from: "screening", to: "time_wasted", started_at: "2026-12-01T10:00:00.000Z" },
+        created_at: "2026-12-01T10:00:00.000Z",
+      };
+      db.getCallBySid.mockResolvedValue(callFixture({ state: "time_wasted" }));
+      db.getCallEvents.mockResolvedValue([entry, ev(""), ev("Could you speak up?", "system"), ev("")]);
+
+      const xml = await (await turn({ ...SPEECH, SpeechResult: "" })).text();
+
+      expect(parseTwiml(xml)).toEqual(["Say", "Hangup"]);
+      expect(xml).toContain("Marmalade");
+      expect(engine).not.toHaveBeenCalled();
+      const exits = db.appendEvent.mock.calls.filter((c) => c[0].type === "state_change");
+      expect(exits).toHaveLength(1);
+      expect(exits[0]![0].payload).toEqual({
+        type: "state_change",
+        from: "time_wasted",
+        to: "completed",
+        started_at: "2026-12-01T10:00:00.000Z",
+        ended_at: "2026-12-01T10:00:07.000Z",
+        seconds: 7,
+        reason: "caller_silent",
+      });
+      expect(db.updateCall).toHaveBeenCalledWith(
+        "CA_TEST_0001",
+        expect.objectContaining({ state: "completed", outcome: "time_wasted", ended_at: "2026-12-01T10:00:07.000Z" }),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("an empty turn separated by speech does not count as consecutive", async () => {

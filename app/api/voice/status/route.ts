@@ -1,34 +1,18 @@
 /**
  * POST /api/voice/status
  *
- * Twilio StatusCallback webhook — fired when a call leg reaches a terminal
+ * Twilio StatusCallback webhook, fired when a call leg reaches a terminal
  * status (completed, busy, failed, no-answer, canceled).
  *
- * Responsibilities:
- *  1. Validate Twilio signature.
- *  2. Set calls.state = "completed" (or "failed") and calls.ended_at = now.
- *  3. Set calls.outcome if not already set by the turn handler.
- *  4. Respond 204 — Twilio ignores the body of status callbacks.
- *
- * This route must NOT return TwiML; it returns an empty 204.
- * On error it returns 500 — Twilio will retry status callbacks.
+ * Thin adapter: validates the Twilio signature and delegates to
+ * handleCallStatus() (lib/voice-status.ts). Responds 204 with no body.
+ * On error it returns 500 so Twilio retries the status callback.
  */
 
 import { validateTwilioRequest } from "@/lib/twilio-validate";
-import { getCallBySid } from "@/lib/db";
-import { finalizeCall } from "@/lib/finalize-call";
-import type { CallState, CallOutcome } from "@/lib/db";
+import { handleCallStatus } from "@/lib/voice-status";
 
 export const runtime = "nodejs";
-
-/** Twilio CallStatus values → our internal state/outcome mappings. */
-const STATUS_MAP: Record<string, { state: CallState; outcome: CallOutcome }> = {
-  completed:  { state: "completed", outcome: "transferred" },
-  busy:       { state: "completed", outcome: "dropped" },
-  failed:     { state: "failed",    outcome: "unknown" },
-  "no-answer":{ state: "completed", outcome: "dropped" },
-  canceled:   { state: "completed", outcome: "dropped" },
-};
 
 export async function POST(req: Request): Promise<Response> {
   let params: Record<string, string>;
@@ -40,19 +24,8 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   try {
-    const callSid    = params["CallSid"]    ?? "";
-    const callStatus = params["CallStatus"] ?? "completed";
-
-    const existing = await getCallBySid(callSid);
-    if (!existing) {
-      // Unknown SID — trusted-contact calls don't all create DB rows; ignore.
-      return new Response(null, { status: 204 });
-    }
-
-    const mapping = STATUS_MAP[callStatus] ?? STATUS_MAP["completed"];
-
-    await finalizeCall(existing, mapping);
-
+    // Unknown SIDs (trusted-contact calls have no row) are ignored.
+    await handleCallStatus(params["CallSid"] ?? "", params["CallStatus"] ?? "completed");
     return new Response(null, { status: 204 });
   } catch {
     return new Response("Internal Server Error", { status: 500 });

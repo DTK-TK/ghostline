@@ -171,7 +171,16 @@ export const CallEventPayloadSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("safe_word_attempt"), matched: z.boolean(), attempt: z.string() }),
   z.object({ type: z.literal("callback_started"), target_phone: z.string() }),
   z.object({ type: z.literal("callback_result"),  outcome: z.string(), duration_seconds: z.number().int().optional() }),
-  z.object({ type: z.literal("state_change"),     from: CallStateSchema, to: CallStateSchema }),
+  z.object({
+    type: z.literal("state_change"),
+    from: CallStateSchema,
+    to: CallStateSchema,
+    // Time-waster entry/exit details. Optional, so existing rows stay valid.
+    started_at: z.string().datetime().optional(),
+    ended_at: z.string().datetime().optional(),
+    seconds: z.number().int().nonnegative().optional(),
+    reason: z.string().optional(),
+  }),
   z.object({
     type: z.literal("alert_sent"),
     channel: z.enum(["sms", "call"]),
@@ -527,6 +536,26 @@ export async function getCallEvents(callId: string): Promise<CallEventRow[]> {
     .order("created_at", { ascending: true });
   if (error) throw error;
   return (data ?? []).map((row) => CallEventSchema.parse(row));
+}
+
+/** One query: state_change events (oldest first) grouped by call id. */
+export async function getStateChangeEventsByCall(
+  callIds: string[],
+): Promise<Record<string, CallEventRow[]>> {
+  if (callIds.length === 0) return {};
+  const { data, error } = await adminDb()
+    .from("call_events")
+    .select("*")
+    .in("call_id", callIds)
+    .eq("type", "state_change")
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  const out: Record<string, CallEventRow[]> = {};
+  for (const row of data ?? []) {
+    const e = CallEventSchema.parse(row);
+    (out[e.call_id] ??= []).push(e);
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------

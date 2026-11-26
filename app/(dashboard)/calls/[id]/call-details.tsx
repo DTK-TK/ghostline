@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buildTimeline, outcomeText } from "@/lib/call-timeline";
 import { formatStart } from "@/lib/format-start";
-import { connectionView, formatDuration } from "@/lib/live-format";
+import { connectionView } from "@/lib/live-format";
 import type { LivePayload } from "@/lib/live-poll";
 import { deriveLiveStatus } from "@/lib/live-status";
 import { useNow } from "@/lib/use-now";
@@ -75,19 +75,6 @@ export function CallDetails({ callId, initial }: { callId: string; initial: Live
             <div className="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-4">
               <dt className="text-muted-foreground">Outcome</dt>
               <dd className="font-medium sm:text-right">{outcomeText(call.outcome, ended)}</dd>
-            </div>
-            <div className="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-4">
-              <dt className="text-muted-foreground">Scammer time wasted</dt>
-              <dd className="font-medium sm:text-right">
-                {status.timeWasted ? (
-                  <span className="font-mono">
-                    {formatDuration(status.timeWasted.seconds)}
-                    {status.timeWasted.running ? "" : " (stopped)"}
-                  </span>
-                ) : (
-                  "None"
-                )}
-              </dd>
             </div>
             <div className="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-4">
               <dt className="text-muted-foreground">Fraud report</dt>

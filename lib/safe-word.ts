@@ -30,6 +30,11 @@ export function normalise(input: string): string {
     .join(" ");
 }
 
+/** Normalises the word, then hashes it with bcryptjs. Never logs the word or hash. */
+export async function hashSafeWord(word: string, cost = 12): Promise<string> {
+  return bcrypt.hash(normalise(word), cost);
+}
+
 /** Removes one spoken lead-in ("it's", "the word is", ...) from raw speech. */
 export function stripLeadIn(input: string): string {
   return input.toLowerCase().replace(LEAD_INS, "").trim();

@@ -14,6 +14,8 @@ import { inChallengePhase, SAFE_WORD_TRANSCRIPT } from "@/lib/safe-word-phase";
 import type { CallRow, CallState, HouseholdRow, RiskLevel } from "@/lib/db";
 import { engine } from "@/lib/conversation";
 import { countConsecutiveSilence } from "@/lib/silence";
+import { GOODBYE_LINE } from "@/lib/time-waster";
+import { recordTimeWastedExit } from "@/lib/time-waster-exit";
 
 /** Consecutive silent turns before giving up. */
 export const SILENCE_LIMIT = 2;
@@ -43,6 +45,10 @@ export type TurnResult =
       silenceHangup: boolean;
       /** True when the call was already terminal and the engine was skipped. */
       alreadyEnded: boolean;
+      /** True when a callback was just started: hold the caller. */
+      hold: boolean;
+      /** True when the route should say `reply` and hang up. */
+      hangup?: boolean;
     };
 
 export function terminalReply(state: CallState): string {
@@ -97,10 +103,29 @@ export async function processTurn(input: TurnInput): Promise<TurnResult> {
       nextState: call.state,
       silenceHangup: false,
       alreadyEnded: true,
+      hold: false,
     };
   }
 
   const silenceCount = speech === "" ? await countConsecutiveSilence(call.id) : 0;
+  if (silenceCount >= SILENCE_LIMIT && call.state === "time_wasted") {
+    // Persona active: close the episode, say goodbye and hang up.
+    const exit = await recordTimeWastedExit({ callId: call.id, reason: "caller_silent" });
+    await updateCall(callSid, {
+      state: "completed",
+      outcome: "time_wasted",
+      ended_at: exit?.endedAt ?? new Date().toISOString(),
+    });
+    return {
+      ...base,
+      reply: GOODBYE_LINE,
+      nextState: "completed",
+      silenceHangup: false,
+      alreadyEnded: false,
+      hold: false,
+      hangup: true,
+    };
+  }
   if (silenceCount >= SILENCE_LIMIT) {
     await updateCall(callSid, { state: "completed", outcome: "dropped" });
     await appendEvent({
@@ -114,10 +139,11 @@ export async function processTurn(input: TurnInput): Promise<TurnResult> {
       nextState: "completed",
       silenceHangup: true,
       alreadyEnded: false,
+      hold: false,
     };
   }
 
-  const { reply, nextState, riskUpdate } = await engine({
+  const { reply, nextState, riskUpdate, hold, hangup, outcome, stateChangeExtra } = await engine({
     callSid,
     speechResult: speech,
     currentState: call.state,
@@ -128,15 +154,35 @@ export async function processTurn(input: TurnInput): Promise<TurnResult> {
     await appendEvent({
       call_id: call.id,
       type: "state_change",
-      payload: { type: "state_change", from: call.state, to: nextState },
+      payload: {
+        type: "state_change",
+        from: call.state,
+        to: nextState,
+        ...(stateChangeExtra ?? {}),
+      },
     });
   }
 
-  const riskScore = Math.max(riskUpdate.score, call.risk_score ?? 0);
+  // The engine's outcome wins; entering scam_blocked is a blocked call.
+  const finalOutcome =
+    outcome ?? (nextState === "scam_blocked" && call.state !== "scam_blocked" ? "blocked" : undefined);
+  const extraEnded = stateChangeExtra?.["ended_at"];
+  const endedAt =
+    finalOutcome || hangup === true
+      ? typeof extraEnded === "string"
+        ? extraEnded
+        : new Date().toISOString()
+      : undefined;
+
+  // combineScores already applies the monotonic floor; flooring again here
+  // would cancel the safe-word and confirmed-callback credits (R11).
+  const riskScore = riskUpdate.score;
   await updateCall(callSid, {
     state: nextState,
     risk_score: riskScore,
     risk_level: riskUpdate.level,
+    ...(finalOutcome ? { outcome: finalOutcome } : {}),
+    ...(endedAt ? { ended_at: endedAt } : {}),
   });
 
   return {
@@ -147,5 +193,7 @@ export async function processTurn(input: TurnInput): Promise<TurnResult> {
     riskLevel: riskUpdate.level,
     silenceHangup: false,
     alreadyEnded: false,
+    hold: hold === true,
+    hangup: hangup === true,
   };
 }

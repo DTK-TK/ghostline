@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import fc from "fast-check";
-import { combineScores, scoreToLevel, type CombineInput } from "@/lib/scoring/combine";
+import { combineScores, creditsFromEvents, scoreToLevel, type CombineInput } from "@/lib/scoring/combine";
 
 const base: CombineInput = {
   rulesScore: 0,
@@ -57,8 +57,8 @@ describe("combineScores (R5)", () => {
     it("never goes below priorScore", () => {
       expect(run({ rulesScore: 10, priorScore: 65 }).score).toBe(65);
     });
-    it("floor applies after safe-word credit", () => {
-      expect(run({ rulesScore: 80, safeWordCorrect: true, priorScore: 80 }).score).toBe(80);
+    it("floor applies before the safe-word credit (credit is not cancelled)", () => {
+      expect(run({ rulesScore: 80, safeWordCorrect: true, priorScore: 80 }).score).toBe(40);
     });
     it("does not lower a higher computed score", () => {
       expect(run({ rulesScore: 50, priorScore: 20 }).score).toBe(50);
@@ -111,12 +111,64 @@ describe("combineScores (R5)", () => {
             const r = run({ rulesScore, aiScore, priorScore, safeWordCorrect, callbackDenied });
             expect(r.score).toBeGreaterThanOrEqual(0);
             expect(r.score).toBeLessThanOrEqual(100);
-            expect(r.score).toBeGreaterThanOrEqual(priorScore);
+            if (!safeWordCorrect || callbackDenied) expect(r.score).toBeGreaterThanOrEqual(priorScore);
             if (callbackDenied) expect(r.level).toBe("high");
           },
         ),
         { numRuns: 200 },
       );
     });
+  });
+});
+
+describe("combineScores: credits after the floor (safe-word-and-callback R11)", () => {
+  it("callbackConfirmed subtracts 40, floor 0", () => {
+    expect(run({ rulesScore: 80, callbackConfirmed: true }).score).toBe(40);
+    expect(run({ rulesScore: 25, callbackConfirmed: true }).score).toBe(0);
+  });
+  it("callbackConfirmed is ignored when denied", () => {
+    const r = run({ rulesScore: 30, callbackConfirmed: true, callbackDenied: true });
+    expect(r.score).toBe(100);
+    expect(r.level).toBe("high");
+  });
+  it("credit is not cancelled by the floor: stored 45 + right word => 5", () => {
+    expect(run({ rulesScore: 45, priorScore: 45, safeWordCorrect: true }).score).toBe(5);
+  });
+  it("a credit already in the stored score is not applied twice", () => {
+    // stored 5 = 45 gross - 40; the next turn still scores 45 gross
+    expect(run({ rulesScore: 45, priorScore: 5, priorCredits: 40, safeWordCorrect: true }).score).toBe(5);
+  });
+  it("word and confirmed callback stack to 80", () => {
+    expect(run({ rulesScore: 90, safeWordCorrect: true, callbackConfirmed: true }).score).toBe(10);
+  });
+  it("denied is HIGH for any prior score and with safeWordCorrect", () => {
+    for (const priorScore of [0, 45, 100]) {
+      expect(run({ priorScore, safeWordCorrect: true, callbackDenied: true }).level).toBe("high");
+    }
+  });
+  it("creditsFromEvents counts word and confirmed, none when denied", () => {
+    const w = { type: "safe_word_attempt", payload: { matched: true } };
+    const c = { type: "callback_result", payload: { outcome: "confirmed" } };
+    const d = { type: "callback_result", payload: { outcome: "denied" } };
+    expect(creditsFromEvents([])).toBe(0);
+    expect(creditsFromEvents([w])).toBe(40);
+    expect(creditsFromEvents([w, c])).toBe(80);
+    expect(creditsFromEvents([w, d])).toBe(0);
+  });
+  it("property: callbackDenied is always HIGH whatever else is set", () => {
+    // **Validates: Requirements 11**
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 0, max: 200 }),
+        fc.integer({ min: 0, max: 200 }),
+        fc.integer({ min: 0, max: 100 }),
+        fc.integer({ min: 0, max: 80 }),
+        fc.boolean(),
+        fc.boolean(),
+        (rulesScore, aiScore, priorScore, priorCredits, safeWordCorrect, callbackConfirmed) =>
+          run({ rulesScore, aiScore, priorScore, priorCredits, safeWordCorrect, callbackConfirmed, callbackDenied: true })
+            .level === "high",
+      ),
+    );
   });
 });

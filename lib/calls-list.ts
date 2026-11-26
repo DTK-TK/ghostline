@@ -11,8 +11,11 @@ import {
   getCallsPage,
   getFraudReportIds,
   getServedHouseholdId,
+  getStateChangeEventsByCall,
+  type CallEventRow,
   type CallRow,
 } from "@/lib/db";
+import { timeWastedSummary, type TimeWastedSummary } from "@/lib/time-waster";
 import { maskNumber } from "@/lib/live-public";
 import type { LiveLevel } from "@/lib/live-status";
 
@@ -40,6 +43,8 @@ export interface CallListRow {
   outcome: string | null;
   simulated: boolean;
   reportId: string | null;
+  /** null when the call never entered time_wasted. */
+  timeWasted: TimeWastedSummary | null;
 }
 
 export interface CallsPageData {
@@ -52,8 +57,14 @@ function levelOf(call: CallRow): LiveLevel | null {
   return call.risk_level;
 }
 
-export function toCallListRow(call: CallRow, reportId: string | null): CallListRow {
+export function toCallListRow(
+  call: CallRow,
+  reportId: string | null,
+  events: readonly CallEventRow[] = [],
+  now: Date = new Date(),
+): CallListRow {
   return {
+    timeWasted: timeWastedSummary(events, now),
     id: call.id,
     startedAt: call.started_at,
     from: maskNumber(call.from_number),
@@ -71,11 +82,13 @@ export function buildPage(
   calls: CallRow[],
   reports: Record<string, string>,
   pageSize = PAGE_SIZE,
+  events: Record<string, CallEventRow[]> = {},
+  now: Date = new Date(),
 ): CallsPageData {
   const hasMore = calls.length > pageSize;
   const shown = calls.slice(0, pageSize);
   return {
-    rows: shown.map((c) => toCallListRow(c, reports[c.id] ?? null)),
+    rows: shown.map((c) => toCallListRow(c, reports[c.id] ?? null, events[c.id] ?? [], now)),
     nextCursor: hasMore && shown.length > 0 ? shown[shown.length - 1].started_at : null,
   };
 }
@@ -84,6 +97,10 @@ export async function loadCallsPage(before?: string | null): Promise<CallsPageDa
   const householdId = await getServedHouseholdId();
   if (!householdId) return { rows: [], nextCursor: null };
   const calls = await getCallsPage(householdId, PAGE_SIZE + 1, before ?? undefined);
-  const reports = await getFraudReportIds(calls.slice(0, PAGE_SIZE).map((c) => c.id));
-  return buildPage(calls, reports);
+  const ids = calls.slice(0, PAGE_SIZE).map((c) => c.id);
+  const [reports, events] = await Promise.all([
+    getFraudReportIds(ids),
+    getStateChangeEventsByCall(ids),
+  ]);
+  return buildPage(calls, reports, PAGE_SIZE, events, new Date());
 }

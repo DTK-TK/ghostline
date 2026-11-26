@@ -28,6 +28,8 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { MockMessageRow } from "@/app/api/dev/phone/inbox/route";
+import { displaySeconds, formatMmSs } from "@/lib/time-waster";
+import type { TimeWastedView } from "@/lib/time-waster";
 
 // ---------------------------------------------------------------------------
 // Web Speech API — full inline declarations.
@@ -100,6 +102,7 @@ interface ActiveCall {
   riskScore: number;
   riskLevel: string;
   flags: string[];
+  timeWasted: TimeWastedView | null;
 }
 
 interface CallbackPending {
@@ -129,6 +132,8 @@ interface TurnResponse {
   riskScore?: number;
   riskLevel?: string;
   flags?: string[];
+  hangup?: boolean;
+  timeWasted?: TimeWastedView;
   callbackPending?: CallbackPending;
   error?: string;
 }
@@ -273,10 +278,11 @@ export default function PhoneClient({ households }: { households: HouseholdOptio
         if (!prev) return prev;
         return {
           ...prev,
-          state:     json.state     ?? prev.state,
-          riskScore: json.riskScore ?? prev.riskScore,
-          riskLevel: json.riskLevel ?? prev.riskLevel,
-          flags:     json.flags     ?? prev.flags,
+          state:      json.state      ?? prev.state,
+          riskScore:  json.riskScore  ?? prev.riskScore,
+          riskLevel:  json.riskLevel  ?? prev.riskLevel,
+          flags:      json.flags      ?? prev.flags,
+          timeWasted: json.timeWasted ?? prev.timeWasted,
         };
       });
 
@@ -284,10 +290,12 @@ export default function PhoneClient({ households }: { households: HouseholdOptio
         setCallbackPending(json.callbackPending);
       }
 
-      const terminal = ["scam_blocked", "completed", "time_wasted", "verified", "transferring"];
-      if (json.state && terminal.includes(json.state)) {
+      // time_wasted is NOT terminal: the persona keeps talking until the
+      // engine ends the call (state "completed").
+      const terminal = ["scam_blocked", "completed", "verified", "transferring"];
+      if ((json.state && terminal.includes(json.state)) || json.hangup === true) {
         setPhase("ended");
-        window.speechSynthesis?.cancel();
+        // Let the goodbye finish; only cancel speech for a user hang-up.
       }
     },
     [pushGhostline],
@@ -322,11 +330,12 @@ export default function PhoneClient({ households }: { households: HouseholdOptio
       }
 
       setActiveCall({
-        callSid:   json.callSid,
-        state:     json.state ?? "screening",
-        riskScore: 0,
-        riskLevel: "low",
-        flags:     [],
+        callSid:    json.callSid,
+        state:      json.state ?? "screening",
+        riskScore:  0,
+        riskLevel:  "low",
+        flags:      [],
+        timeWasted: null,
       });
 
       if (json.reply) pushGhostline(json.reply);
@@ -437,8 +446,8 @@ export default function PhoneClient({ households }: { households: HouseholdOptio
       }
 
       const label =
-        digit === "1" ? "✅ Confirmed — it's really me"
-        : digit === "2" ? "🚫 Denied — that's not me"
+        digit === "2" ? "✅ Confirmed — it's really me"
+        : digit === "1" ? "🚫 Denied — that's not me"
         : "📵 No answer";
       pushSystem(`Callback: ${label}`);
 
@@ -577,17 +586,17 @@ export default function PhoneClient({ households }: { households: HouseholdOptio
               <div className="flex gap-2">
                 <button
                   onClick={() => { void handleCallbackAnswer("1"); }}
-                  className="flex-1 rounded bg-green-700 py-2 text-sm font-semibold text-white
-                             hover:bg-green-600 transition-colors"
-                >
-                  ✅ It&apos;s me (press 1)
-                </button>
-                <button
-                  onClick={() => { void handleCallbackAnswer("2"); }}
                   className="flex-1 rounded bg-red-700 py-2 text-sm font-semibold text-white
                              hover:bg-red-600 transition-colors"
                 >
-                  🚫 Not me (press 2)
+                  🚫 Not me, I&apos;m safe (press 1)
+                </button>
+                <button
+                  onClick={() => { void handleCallbackAnswer("2"); }}
+                  className="flex-1 rounded bg-green-700 py-2 text-sm font-semibold text-white
+                             hover:bg-green-600 transition-colors"
+                >
+                  ✅ It&apos;s me (press 2)
                 </button>
                 <button
                   onClick={() => { void handleCallbackAnswer("0"); }}
@@ -693,6 +702,30 @@ function ChatBubble({ msg }: { msg: ChatMessage }) {
 }
 
 // ---------------------------------------------------------------------------
+// TimeWastedClock — "Scammer time wasted: mm:ss", counts up while running
+// ---------------------------------------------------------------------------
+
+function TimeWastedClock({ view }: { view: TimeWastedView }) {
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!view.running) return;
+    const t = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [view.running]);
+
+  return (
+    <span>
+      Scammer time wasted:{" "}
+      <span className="text-white">{formatMmSs(displaySeconds(view, nowMs))}</span>
+      <span className="text-zinc-400">
+        {" "}/ {formatMmSs(view.limitSeconds)}{view.running ? "" : " (ended)"}
+      </span>
+    </span>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // DebugPanel — state, risk (colour + text label per ui.md), flags
 // ---------------------------------------------------------------------------
 
@@ -717,6 +750,7 @@ function DebugPanel({ call }: { call: ActiveCall }) {
             {level.toUpperCase()}
           </span>
         </span>
+        {call.timeWasted && <TimeWastedClock view={call.timeWasted} />}
         {call.flags.length > 0 && (
           <span className="flex flex-wrap gap-1 items-center">
             Flags:

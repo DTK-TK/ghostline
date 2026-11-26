@@ -96,6 +96,17 @@ export function blockTwiml(): string {
 }
 
 /**
+ * GOODBYE — speak one final line, then hang up (no voicemail, no gather).
+ * Used when the engine ends the call, e.g. the time-waster limit.
+ */
+export function goodbyeTwiml(line: string): string {
+  const r = new VoiceResponse();
+  r.say(line);
+  r.hangup();
+  return r.toString();
+}
+
+/**
  * MESSAGE — could not connect; invite the caller to leave a voicemail.
  * Used for MEDIUM risk or when the caller claims to be family and fails
  * the safe-word challenge.
@@ -116,6 +127,99 @@ export function messageTwiml(): string {
  */
 export function timeWasteTwiml(line: string, baseUrl: string): string {
   return replyTwiml(line, baseUrl);
+}
+
+// ---------------------------------------------------------------------------
+// Callback hold loop
+// ---------------------------------------------------------------------------
+
+function holdCheckUrl(baseUrl: string, n: number): string {
+  return `${baseUrl}/api/voice/hold-check?n=${n}`;
+}
+
+/**
+ * Hold the caller while the family member's phone rings. `say` is spoken on
+ * the first pass only; later passes are silence. 10 seconds, then re-check.
+ */
+export function holdTwiml(baseUrl: string, n: number, say?: string): string {
+  const r = new VoiceResponse();
+  if (say) r.say(say);
+  r.pause({ length: 10 });
+  r.redirect({ method: "POST" }, holdCheckUrl(baseUrl, n));
+  return r.toString();
+}
+
+/**
+ * The hold is over and the call is not blocked: thank the caller, then ask
+ * the (fixed) safe word challenge line and listen.
+ */
+export function holdEndTwiml(challenge: string, baseUrl: string): string {
+  const r = new VoiceResponse();
+  r.say("Thank you for waiting.");
+  const gather = r.gather({
+    input: ["speech"],
+    speechTimeout: "auto",
+    action: turnUrl(baseUrl),
+    method: "POST",
+  });
+  gather.say(challenge);
+  r.redirect({ method: "POST" }, turnUrl(baseUrl));
+  return r.toString();
+}
+
+/** Ends the call with no speech (hold-check on a call that already ended). */
+export function hangupTwiml(): string {
+  const r = new VoiceResponse();
+  r.hangup();
+  return r.toString();
+}
+
+// ---------------------------------------------------------------------------
+// Family member's phone (outbound callback leg)
+// ---------------------------------------------------------------------------
+
+/**
+ * The prompt the family member hears. `claimedName` and `familyName` must
+ * already be sanitised (lib/callback.ts cleanName).
+ */
+export function callbackPromptText(claimedName: string, familyName: string): string {
+  return (
+    `This is Ghostline. Someone saying they are ${claimedName} is calling the ` +
+    `${familyName} family right now. Press 1 if you are safe and NOT calling. ` +
+    "Press 2 if it really is you."
+  );
+}
+
+export function callbackPromptTwiml(
+  claimedName: string,
+  familyName: string,
+  resultUrl: string,
+): string {
+  const r = new VoiceResponse();
+  const gather = r.gather({
+    input: ["dtmf"],
+    numDigits: 1,
+    timeout: 10,
+    action: resultUrl,
+    method: "POST",
+  });
+  gather.say(callbackPromptText(claimedName, familyName));
+  r.say("We did not get a response. Goodbye.");
+  r.hangup();
+  return r.toString();
+}
+
+/** Spoken to the family member after a digit; also the empty status reply. */
+export function callbackThanksTwiml(): string {
+  const r = new VoiceResponse();
+  r.say("Thank you. Goodbye.");
+  r.hangup();
+  return r.toString();
+}
+
+/** Empty reply for status callbacks, which ignore the body. */
+export function emptyTwiml(): string {
+  return new VoiceResponse().toString();
 }
 
 // ---------------------------------------------------------------------------

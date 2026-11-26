@@ -21,16 +21,26 @@ import {
   updateCall,
   appendEvent,
 } from "@/lib/db";
-import type { CallState, RiskLevel, CallEventRow } from "@/lib/db";
+import type { CallState, CallOutcome, RiskLevel, CallEventRow } from "@/lib/db";
+import {
+  ENTRY_LINE,
+  GRANDMOTHER_LINES,
+  GOODBYE_LINE,
+  limitSeconds,
+  elapsedSeconds,
+  startedAtFrom,
+  enterHighRisk,
+} from "@/lib/time-waster";
 import { scoreRules } from "@/lib/scoring/rules";
 import { callGemini, GeminiUnavailableError } from "@/lib/scoring/ai";
 import type { ConversationTurn } from "@/lib/scoring/ai";
-import { combineScores, scoreToLevel } from "@/lib/scoring/combine";
+import { combineScores, creditsFromEvents, scoreToLevel } from "@/lib/scoring/combine";
 import { validateReply } from "@/lib/scoring/reply-guard";
 import { filterKnownFlags } from "@/lib/scoring/known-flags";
 import { sendAlerts } from "@/lib/alerts";
 import { extractAmount, extractPaymentMethod, nonEmpty } from "@/lib/extract-evidence";
 import { checkSafeWord } from "@/lib/safe-word";
+import { startCallback, HOLD_REPLY } from "@/lib/callback";
 import { claimsFamilyByPattern } from "@/lib/family-claim";
 import {
   SAFE_WORD_CHALLENGE,
@@ -46,7 +56,7 @@ import {
 import type { CallRow, HouseholdRow } from "@/lib/db";
 
 // ---------------------------------------------------------------------------
-// Public contract �?matches conversation-engine.ts TurnInput / TurnOutput
+// Public contract ??matches conversation-engine.ts TurnInput / TurnOutput
 // ---------------------------------------------------------------------------
 
 export interface EngineInput {
@@ -60,6 +70,14 @@ export interface EngineOutput {
   reply: string;
   nextState: CallState;
   riskUpdate: { score: number; level: RiskLevel };
+  /** True when the callback was just started: the route holds the caller. */
+  hold?: boolean;
+  /** True when the route should say `reply` and hang up. */
+  hangup?: boolean;
+  /** Call outcome to store when this turn ends the call. */
+  outcome?: CallOutcome;
+  /** Extra fields for the state_change payload (started_at, ended_at, ...). */
+  stateChangeExtra?: Record<string, unknown>;
 }
 
 // ---------------------------------------------------------------------------
@@ -110,7 +128,7 @@ function buildHistory(events: CallEventRow[]): ConversationTurn[] {
  * Determine the next call state from the combined risk level, the AI output,
  * and whether the caller claims to be family.
  *
- * The engine never moves a call backwards �?once verified or blocked it stays.
+ * The engine never moves a call backwards ??once verified or blocked it stays.
  */
 function computeNextState(
   current: CallState,
@@ -215,7 +233,11 @@ async function handleSafeWordAttempt(args: {
     callbackDenied: events.some(
       (e) => e.type === "callback_result" && e.payload["outcome"] === "denied",
     ),
+    callbackConfirmed: events.some(
+      (e) => e.type === "callback_result" && e.payload["outcome"] === "confirmed",
+    ),
     priorScore: currentRiskScore,
+    priorCredits: creditsFromEvents(events),
   });
 
   for (const flagId of newFlags(combined.flags, priorFlagIds)) {
@@ -270,7 +292,54 @@ async function handleSafeWordAttempt(args: {
     payload: { type: "transcript", text: reply, speaker: "system" },
   });
 
-  return { reply, nextState, riskUpdate: { score: combined.score, level: combined.level } };
+  // Same shared HIGH transition as the main path (entry event, blocked outcome).
+  const high =
+    combined.level === "high" && currentState !== "time_wasted"
+      ? enterHighRisk({ call: { state: currentState }, household, now: new Date() })
+      : null;
+  const highApplies = high !== null && high.state === nextState && nextState !== currentState;
+
+  return {
+    reply,
+    nextState,
+    riskUpdate: { score: combined.score, level: combined.level },
+    ...(highApplies && high.hangup ? { hangup: true } : {}),
+    ...(highApplies && high.outcome ? { outcome: high.outcome } : {}),
+    ...(highApplies && Object.keys(high.extra).length > 0
+      ? { stateChangeExtra: high.extra }
+      : {}),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Time-waster helpers
+// ---------------------------------------------------------------------------
+
+/** Words the grandmother never says (R4/R5). */
+const PERSONA_FORBIDDEN = /scam|fraud|police|report|suspicious|risk|record/i;
+
+/** Persona AI replies: under 20 words, 2 sentences, no accusatory vocabulary. */
+function validatePersonaReply(text: string | undefined): string | null {
+  const ok = text === undefined ? null : validateReply(text, { maxWords: 20 });
+  return ok && !PERSONA_FORBIDDEN.test(ok) ? ok : null;
+}
+
+/** Scripted persona line: ENTRY_LINE on entry, then rotated by turn index. */
+function scriptedPersonaLine(events: CallEventRow[], entering: boolean): string {
+  if (entering) return ENTRY_LINE;
+  let entryIdx = -1;
+  for (let i = events.length - 1; i >= 0; i--) {
+    const e = events[i]!;
+    if (e.type === "state_change" && e.payload["to"] === "time_wasted") {
+      entryIdx = i;
+      break;
+    }
+  }
+  const callerTurns = events
+    .slice(entryIdx + 1)
+    .filter((e) => e.type === "transcript" && e.payload["speaker"] === "caller").length;
+  const idx = Math.max(0, callerTurns - 1);
+  return GRANDMOTHER_LINES[idx % GRANDMOTHER_LINES.length]!;
 }
 
 // ---------------------------------------------------------------------------
@@ -289,6 +358,38 @@ export async function engine(input: EngineInput): Promise<EngineOutput> {
 
   // 2. Load event history.
   const events = await getCallEvents(call.id);
+
+  // 2a. Time limit: checked before any AI call. The persona ends the call.
+  const now = new Date();
+  if (currentState === "time_wasted") {
+    const limit = limitSeconds();
+    const elapsed = elapsedSeconds(events, now);
+    if (elapsed >= limit) {
+      const startedAt = startedAtFrom(events)!;
+      const seconds = Math.min(elapsed, limit);
+      await appendEvent({
+        call_id: call.id,
+        type: "transcript",
+        payload: { type: "transcript", text: GOODBYE_LINE, speaker: "system" },
+      });
+      return {
+        reply: GOODBYE_LINE,
+        nextState: "completed",
+        riskUpdate: {
+          score: call.risk_score ?? currentRiskScore,
+          level: (call.risk_level ?? "high") as RiskLevel,
+        },
+        hangup: true,
+        outcome: "time_wasted",
+        stateChangeExtra: {
+          started_at: startedAt,
+          ended_at: new Date(Date.parse(startedAt) + seconds * 1000).toISOString(),
+          seconds,
+          reason: "limit",
+        },
+      };
+    }
+  }
 
   // 2b. Safe word attempt turn: handled apart from the AI and rules layers.
   if (inChallengePhase(events)) {
@@ -314,12 +415,23 @@ export async function engine(input: EngineInput): Promise<EngineOutput> {
   // 5. Build conversation history for Gemini.
   const history = buildHistory(events);
 
-  // 6. AI layer �?with fallback on GeminiUnavailableError.
+  // 6. AI layer ??with fallback on GeminiUnavailableError.
+  // Persona: already in it, or the rules alone reach HIGH with the setting on.
+  // If only the AI raises the score to HIGH, this turn's reply is a normal
+  // screening reply and the engine uses ENTRY_LINE instead (no second call).
+  const failedAttemptsPre = events.filter(
+    (e) => e.type === "safe_word_attempt" && e.payload["matched"] === false,
+  ).length;
+  const rulesHigh =
+    scoreToLevel(rulesResult.score + SAFE_WORD_FAIL_POINTS * failedAttemptsPre) === "high";
+  const persona =
+    currentState === "time_wasted" || (rulesHigh && household.time_waster_enabled);
+
   let geminiResult: Awaited<ReturnType<typeof callGemini>> | null = null;
   let usedFallback = false;
 
   try {
-    geminiResult = await callGemini(household.family_name, history, speechResult);
+    geminiResult = await callGemini(household.family_name, history, speechResult, persona);
   } catch (err) {
     if (err instanceof GeminiUnavailableError) {
       usedFallback = true;
@@ -361,7 +473,11 @@ export async function engine(input: EngineInput): Promise<EngineOutput> {
     allFlags: allFlagIds,
     safeWordCorrect,
     callbackDenied,
+    callbackConfirmed: events.some(
+      (e) => e.type === "callback_result" && e.payload["outcome"] === "confirmed",
+    ),
     priorScore: currentRiskScore,
+    priorCredits: creditsFromEvents(events),
   });
 
   // 8. Persist new red_flag events for flags not seen before.
@@ -417,15 +533,27 @@ export async function engine(input: EngineInput): Promise<EngineOutput> {
   const claimsFamily =
     (geminiResult?.claims_family ?? false) ||
     (usedFallback && claimsFamilyByPattern(speechResult)) ||
-    isChallengeLine(lastSystem?.payload["text"]);
-  const nextState = computeNextState(
-    currentState,
-    combined.level,
-    claimsFamily,
-    household.time_waster_enabled,
-    callerTurnCount,
-    safeWordCorrect,
-  );
+    isChallengeLine(lastSystem?.payload["text"]) ||
+    lastSystem?.payload["text"] === HOLD_REPLY;
+  // Once in the persona the call stays there until the limit, hang-up or silence.
+  const nextState: CallState =
+    currentState === "time_wasted"
+      ? "time_wasted"
+      : computeNextState(
+          currentState,
+          combined.level,
+          claimsFamily,
+          household.time_waster_enabled,
+          callerTurnCount,
+          safeWordCorrect,
+        );
+
+  // HIGH transition fields (entry event, blocked outcome) come from the shared helper.
+  const high =
+    combined.level === "high" && currentState !== "time_wasted"
+      ? enterHighRisk({ call: { state: currentState }, household, now })
+      : null;
+  const highApplies = high !== null && high.state === nextState && nextState !== currentState;
 
   // 10b. MEDIUM message taken: alert the family once. Fires only on the
   // transition into "completed"; sendAlerts is also idempotent per recipient.
@@ -459,8 +587,29 @@ export async function engine(input: EngineInput): Promise<EngineOutput> {
   // line (R7.6, R7.11), so the AI reply cannot hint at the safe word.
   const challenging =
     claimsFamily && nextState === "screening" && combined.level !== "high";
-  const reply = challenging
+  // First family claim on a real call: phone a family member and hold the
+  // caller. startCallback is once per call and needs a target and a clean
+  // name; otherwise the caller simply gets the challenge. Simulated calls
+  // never place a real call.
+  const hold =
+    challenging &&
+    !call.is_simulated &&
+    (await startCallback({
+      call,
+      household,
+      claimedName: geminiResult?.claimed_identity ?? call.claimed_identity,
+    })) === "started";
+  const entering = nextState === "time_wasted" && currentState !== "time_wasted";
+  const reply = hold
+    ? HOLD_REPLY
+    : challenging
     ? SAFE_WORD_CHALLENGE
+    : highApplies && high.hangup
+    ? fallbackReply("high")
+    : nextState === "time_wasted"
+    ? ((persona && !usedFallback && geminiResult
+        ? validatePersonaReply(geminiResult.reply)
+        : null) ?? scriptedPersonaLine(events, entering))
     : ((!usedFallback && geminiResult ? validateReply(geminiResult.reply) : null) ??
       fallbackReply(combined.level));
 
@@ -476,5 +625,11 @@ export async function engine(input: EngineInput): Promise<EngineOutput> {
     reply,
     nextState,
     riskUpdate: { score: combined.score, level: combined.level },
+    ...(hold ? { hold: true } : {}),
+    ...(highApplies && high.hangup ? { hangup: true } : {}),
+    ...(highApplies && high.outcome ? { outcome: high.outcome } : {}),
+    ...(highApplies && Object.keys(high.extra).length > 0
+      ? { stateChangeExtra: high.extra }
+      : {}),
   };
 }

@@ -1,0 +1,365 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "**5. `lib/time-waster.ts`.** `limitSeconds()` (env read per call, clamp": [
+      {
+        "executionId": "adf40730-958a-4eb7-b280-9df787432b63",
+        "chatSessionId": "sess_788d97fe-2b67-4eb8-b544-eac1da6bf1c4",
+        "timestamp": 1795694437977
+      },
+      {
+        "executionId": "adf40730-958a-4eb7-b280-9df787432b63",
+        "chatSessionId": "sess_788d97fe-2b67-4eb8-b544-eac1da6bf1c4",
+        "timestamp": 1795694444764
+      },
+      {
+        "executionId": "adf40730-958a-4eb7-b280-9df787432b63",
+        "chatSessionId": "sess_788d97fe-2b67-4eb8-b544-eac1da6bf1c4",
+        "timestamp": 1795694515616
+      }
+    ],
+    "**10. Schema.** Extend the `state_change` payload schema in `lib/db.ts`": [
+      {
+        "executionId": "adf40730-958a-4eb7-b280-9df787432b63",
+        "chatSessionId": "sess_788d97fe-2b67-4eb8-b544-eac1da6bf1c4",
+        "timestamp": 1795694438194
+      },
+      {
+        "executionId": "adf40730-958a-4eb7-b280-9df787432b63",
+        "chatSessionId": "sess_788d97fe-2b67-4eb8-b544-eac1da6bf1c4",
+        "timestamp": 1795694517681
+      },
+      {
+        "executionId": "adf40730-958a-4eb7-b280-9df787432b63",
+        "chatSessionId": "sess_788d97fe-2b67-4eb8-b544-eac1da6bf1c4",
+        "timestamp": 1795694567459
+      }
+    ],
+    "**6. Persona prompt.** Add `buildTimeWasterPrompt()` in": [
+      {
+        "executionId": "adf40730-958a-4eb7-b280-9df787432b63",
+        "chatSessionId": "sess_788d97fe-2b67-4eb8-b544-eac1da6bf1c4",
+        "timestamp": 1795694438321
+      },
+      {
+        "executionId": "adf40730-958a-4eb7-b280-9df787432b63",
+        "chatSessionId": "sess_788d97fe-2b67-4eb8-b544-eac1da6bf1c4",
+        "timestamp": 1795694569454
+      },
+      {
+        "executionId": "adf40730-958a-4eb7-b280-9df787432b63",
+        "chatSessionId": "sess_788d97fe-2b67-4eb8-b544-eac1da6bf1c4",
+        "timestamp": 1795694637489
+      }
+    ],
+    "**7. Engine decision flow.** Implement the flow in design.md: limit check": [
+      {
+        "executionId": "adf40730-958a-4eb7-b280-9df787432b63",
+        "chatSessionId": "sess_788d97fe-2b67-4eb8-b544-eac1da6bf1c4",
+        "timestamp": 1795694438415
+      },
+      {
+        "executionId": "adf40730-958a-4eb7-b280-9df787432b63",
+        "chatSessionId": "sess_788d97fe-2b67-4eb8-b544-eac1da6bf1c4",
+        "timestamp": 1795694639194
+      },
+      {
+        "executionId": "adf40730-958a-4eb7-b280-9df787432b63",
+        "chatSessionId": "sess_788d97fe-2b67-4eb8-b544-eac1da6bf1c4",
+        "timestamp": 1795694769842
+      }
+    ],
+    "**8. Route and TwiML.** Add `goodbyeTwiml(line)` (Say + Hangup). The turn": [
+      {
+        "executionId": "adf40730-958a-4eb7-b280-9df787432b63",
+        "chatSessionId": "sess_788d97fe-2b67-4eb8-b544-eac1da6bf1c4",
+        "timestamp": 1795694438502
+      },
+      {
+        "executionId": "adf40730-958a-4eb7-b280-9df787432b63",
+        "chatSessionId": "sess_788d97fe-2b67-4eb8-b544-eac1da6bf1c4",
+        "timestamp": 1795694771765
+      },
+      {
+        "executionId": "6bfd8766-78b0-4283-9671-5363a265138c",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795695886510
+      },
+      {
+        "executionId": "6bfd8766-78b0-4283-9671-5363a265138c",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795695889683
+      },
+      {
+        "executionId": "6bfd8766-78b0-4283-9671-5363a265138c",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795695944845
+      }
+    ],
+    "**9. Exit on hang-up and silence.** `/api/voice/status` reads the stored": [
+      {
+        "executionId": "adf40730-958a-4eb7-b280-9df787432b63",
+        "chatSessionId": "sess_788d97fe-2b67-4eb8-b544-eac1da6bf1c4",
+        "timestamp": 1795694438668
+      },
+      {
+        "executionId": "6bfd8766-78b0-4283-9671-5363a265138c",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795695946884
+      },
+      {
+        "executionId": "6bfd8766-78b0-4283-9671-5363a265138c",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795696047550
+      }
+    ],
+    "**11. Config.** Add `TIME_WASTER_SECONDS` (commented, with the 180 default": [
+      {
+        "executionId": "adf40730-958a-4eb7-b280-9df787432b63",
+        "chatSessionId": "sess_788d97fe-2b67-4eb8-b544-eac1da6bf1c4",
+        "timestamp": 1795694438783
+      },
+      {
+        "executionId": "6bfd8766-78b0-4283-9671-5363a265138c",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795696049654
+      },
+      {
+        "executionId": "6bfd8766-78b0-4283-9671-5363a265138c",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795696063419
+      }
+    ],
+    "**12. Shared HIGH transition.** `callback-result` and `hold-check`": [
+      {
+        "executionId": "adf40730-958a-4eb7-b280-9df787432b63",
+        "chatSessionId": "sess_788d97fe-2b67-4eb8-b544-eac1da6bf1c4",
+        "timestamp": 1795694438889
+      },
+      {
+        "executionId": "6bfd8766-78b0-4283-9671-5363a265138c",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795696065519
+      },
+      {
+        "executionId": "6bfd8766-78b0-4283-9671-5363a265138c",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795696145970
+      }
+    ],
+    "**1. The persona switch happens at HIGH.** In `tests/time-waster.test.ts`:": [
+      {
+        "executionId": "adf40730-958a-4eb7-b280-9df787432b63",
+        "chatSessionId": "sess_788d97fe-2b67-4eb8-b544-eac1da6bf1c4",
+        "timestamp": 1795694438976
+      },
+      {
+        "executionId": "6bfd8766-78b0-4283-9671-5363a265138c",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795696148963
+      },
+      {
+        "executionId": "6bfd8766-78b0-4283-9671-5363a265138c",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795696218254
+      }
+    ],
+    "**2. The call ends at the limit.** With `TIME_WASTER_SECONDS=5`: at 4 s": [
+      {
+        "executionId": "adf40730-958a-4eb7-b280-9df787432b63",
+        "chatSessionId": "sess_788d97fe-2b67-4eb8-b544-eac1da6bf1c4",
+        "timestamp": 1795694439088
+      },
+      {
+        "executionId": "6bfd8766-78b0-4283-9671-5363a265138c",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795696220561
+      },
+      {
+        "executionId": "6bfd8766-78b0-4283-9671-5363a265138c",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795696268027
+      }
+    ],
+    "**3. Both events are logged.** The entry event is": [
+      {
+        "executionId": "adf40730-958a-4eb7-b280-9df787432b63",
+        "chatSessionId": "sess_788d97fe-2b67-4eb8-b544-eac1da6bf1c4",
+        "timestamp": 1795694439219
+      },
+      {
+        "executionId": "6bfd8766-78b0-4283-9671-5363a265138c",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795696269722
+      },
+      {
+        "executionId": "6bfd8766-78b0-4283-9671-5363a265138c",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795696303565
+      }
+    ],
+    "**4. Disabled means BLOCK.** With `time_waster_enabled: false` and a HIGH": [
+      {
+        "executionId": "adf40730-958a-4eb7-b280-9df787432b63",
+        "chatSessionId": "sess_788d97fe-2b67-4eb8-b544-eac1da6bf1c4",
+        "timestamp": 1795694439333
+      },
+      {
+        "executionId": "6bfd8766-78b0-4283-9671-5363a265138c",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795696305313
+      },
+      {
+        "executionId": "6bfd8766-78b0-4283-9671-5363a265138c",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795696367216
+      }
+    ],
+    "**14. Dashboard duration.** Show \"Scammer time wasted: mm:ss\" on Live": [
+      {
+        "executionId": "adf40730-958a-4eb7-b280-9df787432b63",
+        "chatSessionId": "sess_788d97fe-2b67-4eb8-b544-eac1da6bf1c4",
+        "timestamp": 1795694439439
+      },
+      {
+        "executionId": "6bfd8766-78b0-4283-9671-5363a265138c",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795696369183
+      },
+      {
+        "executionId": "6bfd8766-78b0-4283-9671-5363a265138c",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795696482421
+      }
+    ],
+    "**16. Live end-to-end check.** On the real number with the setting on and": [
+      {
+        "executionId": "adf40730-958a-4eb7-b280-9df787432b63",
+        "chatSessionId": "sess_788d97fe-2b67-4eb8-b544-eac1da6bf1c4",
+        "timestamp": 1795694439566
+      }
+    ],
+    "**13. Dev phone.** Stop treating `time_wasted` as terminal in": [
+      {
+        "executionId": "adf40730-958a-4eb7-b280-9df787432b63",
+        "chatSessionId": "sess_788d97fe-2b67-4eb8-b544-eac1da6bf1c4",
+        "timestamp": 1795694439670
+      },
+      {
+        "executionId": "6bfd8766-78b0-4283-9671-5363a265138c",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795696493171
+      },
+      {
+        "executionId": "6bfd8766-78b0-4283-9671-5363a265138c",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795696799858
+      }
+    ],
+    "**15. Settings toggle.** Add `updateHousehold()` to `lib/db.ts`, an": [
+      {
+        "executionId": "adf40730-958a-4eb7-b280-9df787432b63",
+        "chatSessionId": "sess_788d97fe-2b67-4eb8-b544-eac1da6bf1c4",
+        "timestamp": 1795694439769
+      }
+    ],
+    "**R1** Activation. `computeNextState` exists but is not live. Tasks 7, 12.": [
+      {
+        "executionId": "adf40730-958a-4eb7-b280-9df787432b63",
+        "chatSessionId": "sess_788d97fe-2b67-4eb8-b544-eac1da6bf1c4",
+        "timestamp": 1795694439863
+      }
+    ],
+    "**R2** Disabled means BLOCK. Same code path, not live, no outcome set. Tasks 4, 7, 8.": [
+      {
+        "executionId": "adf40730-958a-4eb7-b280-9df787432b63",
+        "chatSessionId": "sess_788d97fe-2b67-4eb8-b544-eac1da6bf1c4",
+        "timestamp": 1795694439970
+      }
+    ],
+    "**R3** Persona. Prompt block exists, `inTimeWaster` never true. Tasks 6, 7.": [
+      {
+        "executionId": "adf40730-958a-4eb7-b280-9df787432b63",
+        "chatSessionId": "sess_788d97fe-2b67-4eb8-b544-eac1da6bf1c4",
+        "timestamp": 1795694440106
+      }
+    ],
+    "**R4** Reply limits. No guard, no persona fallback. Tasks 5, 7.": [
+      {
+        "executionId": "adf40730-958a-4eb7-b280-9df787432b63",
+        "chatSessionId": "sess_788d97fe-2b67-4eb8-b544-eac1da6bf1c4",
+        "timestamp": 1795694440200
+      }
+    ],
+    "**R5** Reveals nothing real. Prompt includes the family name. Task 6.": [
+      {
+        "executionId": "adf40730-958a-4eb7-b280-9df787432b63",
+        "chatSessionId": "sess_788d97fe-2b67-4eb8-b544-eac1da6bf1c4",
+        "timestamp": 1795694440288
+      }
+    ],
+    "**R6** Entry turn. Not implemented. Tasks 1, 7.": [
+      {
+        "executionId": "adf40730-958a-4eb7-b280-9df787432b63",
+        "chatSessionId": "sess_788d97fe-2b67-4eb8-b544-eac1da6bf1c4",
+        "timestamp": 1795694440403
+      }
+    ],
+    "**R7** Time limit. No timer, no env var. Tasks 2, 5, 7, 11.": [
+      {
+        "executionId": "adf40730-958a-4eb7-b280-9df787432b63",
+        "chatSessionId": "sess_788d97fe-2b67-4eb8-b544-eac1da6bf1c4",
+        "timestamp": 1795694440521
+      }
+    ],
+    "**R8** Events. Only `from` and `to`, no exit event. Tasks 3, 8, 9, 10.": [
+      {
+        "executionId": "adf40730-958a-4eb7-b280-9df787432b63",
+        "chatSessionId": "sess_788d97fe-2b67-4eb8-b544-eac1da6bf1c4",
+        "timestamp": 1795694440616
+      }
+    ],
+    "**R9** Dashboard duration. No helper, no page. Tasks 5, 14.": [
+      {
+        "executionId": "adf40730-958a-4eb7-b280-9df787432b63",
+        "chatSessionId": "sess_788d97fe-2b67-4eb8-b544-eac1da6bf1c4",
+        "timestamp": 1795694440721
+      }
+    ],
+    "**R10** Scoring continues. Not live. Task 7.": [
+      {
+        "executionId": "adf40730-958a-4eb7-b280-9df787432b63",
+        "chatSessionId": "sess_788d97fe-2b67-4eb8-b544-eac1da6bf1c4",
+        "timestamp": 1795694440882
+      }
+    ],
+    "**R11** (part) Goodbye then `<Hangup/>`. No builder. Task 8.": [
+      {
+        "executionId": "adf40730-958a-4eb7-b280-9df787432b63",
+        "chatSessionId": "sess_788d97fe-2b67-4eb8-b544-eac1da6bf1c4",
+        "timestamp": 1795694440982
+      }
+    ],
+    "**R12** Household toggle. No page, no `updateHousehold`. Task 15.": [
+      {
+        "executionId": "adf40730-958a-4eb7-b280-9df787432b63",
+        "chatSessionId": "sess_788d97fe-2b67-4eb8-b544-eac1da6bf1c4",
+        "timestamp": 1795694441071
+      }
+    ],
+    "**R13** Configuration. Tasks 7, 11.": [
+      {
+        "executionId": "adf40730-958a-4eb7-b280-9df787432b63",
+        "chatSessionId": "sess_788d97fe-2b67-4eb8-b544-eac1da6bf1c4",
+        "timestamp": 1795694441157
+      }
+    ],
+    "**R14** Verification. Test tasks 1 to 4.": [
+      {
+        "executionId": "adf40730-958a-4eb7-b280-9df787432b63",
+        "chatSessionId": "sess_788d97fe-2b67-4eb8-b544-eac1da6bf1c4",
+        "timestamp": 1795694441285
+      }
+    ]
+  }
+}

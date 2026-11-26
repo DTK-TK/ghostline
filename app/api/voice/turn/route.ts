@@ -1,4 +1,4 @@
-﻿/**
+/**
  * POST /api/voice/turn
  *
  * Twilio webhook after every <Gather> or <Redirect>. Thin adapter: validates
@@ -6,7 +6,8 @@
  * the resulting state to TwiML. Any error returns errorFallbackTwiml.
  *
  * State-to-TwiML mapping:
- *   screening / initiated  replyTwiml (keep gathering)
+ *   screening / initiated  replyTwiml (keep gathering), or holdTwiml when the
+ *                          callback just started
  *   time_wasted            timeWasteTwiml
  *   verified / transferring connectTwiml
  *   scam_blocked           blockTwiml
@@ -21,6 +22,8 @@ import {
   timeWasteTwiml,
   silenceGoodbyeTwiml,
   errorFallbackTwiml,
+  holdTwiml,
+  goodbyeTwiml,
 } from "@/lib/twiml";
 import type { CallState } from "@/lib/db";
 import { processTurn } from "@/lib/turn";
@@ -47,8 +50,17 @@ export async function POST(req: Request): Promise<Response> {
     if (result.kind === "not_found") return twimlResponse(errorFallbackTwiml());
     if (result.silenceHangup) return twimlResponse(silenceGoodbyeTwiml());
 
+    // The engine ended the call (e.g. time-waster limit): goodbye, then hang up.
+    if (result.hangup) return twimlResponse(goodbyeTwiml(result.reply));
+
     const baseUrl = process.env.PUBLIC_BASE_URL ?? "";
     const twilioNumber = process.env.TWILIO_PHONE_NUMBER ?? params["To"] ?? "";
+
+    // The callback was just started: hold the caller while the family
+    // member's phone rings. /api/voice/hold-check decides what happens next.
+    if (result.hold && result.nextState === "screening") {
+      return twimlResponse(holdTwiml(baseUrl, 1, result.reply));
+    }
 
     return twimlResponse(
       buildTwiml(result.nextState, result.reply, baseUrl, result.household.senior_phone, twilioNumber),

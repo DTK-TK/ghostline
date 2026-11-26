@@ -6,6 +6,26 @@
         "executionId": "a51ff1d1-0913-4185-9d84-0f6d5d89947c",
         "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
         "timestamp": 1795691411764
+      },
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795693445145
+      },
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795693445328
+      },
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795693452157
+      },
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795693490881
       }
     ],
     "**6. `lib/safe-word.ts`.** `normalise`, `stripLeadIn`, `checkSafeWord`": [
@@ -54,6 +74,233 @@
         "executionId": "a51ff1d1-0913-4185-9d84-0f6d5d89947c",
         "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
         "timestamp": 1795692302484
+      }
+    ],
+    "**1. Build `POST /api/voice/hold-check` and `POST /api/voice/callback-result`.**": [
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795693445465
+      },
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795693496176
+      },
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795693549508
+      }
+    ],
+    "**2. Tests for both routes, reusing `tests/helpers/voice.ts`.**": [
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795693445648
+      },
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795693551608
+      },
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795693586466
+      }
+    ],
+    "**5. Fix `combineScores`.** Add `callbackConfirmed` (-40, floor 0, ignored": [
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795693445784
+      },
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795693588560
+      },
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795693915376
+      }
+    ],
+    "**3. Scoring tests.** In `tests/safe-word.test.ts`,": [
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795693445955
+      },
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795693917441
+      },
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795694094526
+      }
+    ],
+    "**13. Phone number privacy.** Remove full numbers from `MockTelephony`": [
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795693446261
+      },
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795694096830
+      },
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795694152649
+      }
+    ],
+    "**15. Alerts on denial.** A denied result triggers the family alert and": [
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795693446381
+      },
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795694154721
+      },
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795694221942
+      }
+    ],
+    "**12. Align the dev harness.** In `/api/dev/phone/callback-answer` and": [
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795693446572
+      },
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795694224194
+      },
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795694301275
+      }
+    ],
+    "**14. Settings uses `normalise`.** The Settings page (dashboard spec)": [
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795693446688
+      },
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795694306201
+      },
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795694336830
+      }
+    ],
+    "**R1** Challenge and prompt. No code. See tasks 7, 9.": [
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795693446814
+      }
+    ],
+    "**R2** Normalisation. No code. See task 6.": [
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795693446928
+      }
+    ],
+    "**R3** Comparison. No `lib/safe-word.ts`; nothing imports `bcryptjs`. Tasks 4b, 6.": [
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795693447059
+      }
+    ],
+    "**R4** Success. No code. Tasks 5, 7.": [
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795693447280
+      }
+    ],
+    "**R5** Failure. No code; `safe_word_fail` points not implemented. Task 7.": [
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795693447450
+      }
+    ],
+    "**R6** Never exposed. Raw speech is stored and sent to Gemini today. Tasks 7, 8.": [
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795693447607
+      }
+    ],
+    "**R7** Callback initiation. Provider method exists, never called. Tasks 10, 11.": [
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795693447739
+      }
+    ],
+    "**R8** Results. Only a dev route, with reversed digits. Tasks 1, 5, 12.": [
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795693447865
+      }
+    ],
+    "**R9** Hold loop. No route. Task 1.": [
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795693447992
+      }
+    ],
+    "**R10** Webhook rules. The new routes do not exist. Tasks 1, 2, 11.": [
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795693448121
+      }
+    ],
+    "**R11** Score interaction. Hardcoded `false`; floor cancels credits. Tasks 5, 7.": [
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795693448257
+      }
+    ],
+    "**R12** Privacy. `MockTelephony` logs full numbers. Task 13.": [
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795693448411
+      }
+    ],
+    "**R13** Verification. No tests for any of this. Tasks 2, 3, 4b.": [
+      {
+        "executionId": "8dda661c-aaf5-47ba-903e-a0ab57413daf",
+        "chatSessionId": "sess_9b9aa955-03db-415b-80de-87817ad9fc6a",
+        "timestamp": 1795693448628
       }
     ]
   }

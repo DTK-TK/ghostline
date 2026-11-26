@@ -1,5 +1,6 @@
-import { callbackText, formatDuration, safeWordText, stateText } from "@/lib/live-format";
+import { callbackText, safeWordText, stateText } from "@/lib/live-format";
 import type { LiveStatus } from "@/lib/live-status";
+import { formatMmSs } from "@/lib/time-waster";
 
 function Row({ term, children }: { term: string; children: React.ReactNode }) {
   return (
@@ -19,7 +20,7 @@ export function StatusRows({ status }: { status: LiveStatus }) {
       <Row term="Family check">{callbackText(status.callback, status.callbackTarget)}</Row>
       {tw ? (
         <Row term="Scammer time wasted">
-          <span className="font-mono">{formatDuration(tw.seconds)}</span>
+          <span className="font-mono">{formatMmSs(tw.seconds)}</span>
           {tw.running ? "" : " (stopped)"}
         </Row>
       ) : null}

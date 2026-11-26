@@ -16,6 +16,7 @@
 
 import twilio from "twilio";
 import { adminDb } from "@/lib/db";
+import { maskPhone } from "@/lib/phone";
 
 // ---------------------------------------------------------------------------
 // Interface
@@ -94,7 +95,7 @@ export class TwilioTelephony implements TelephonyProvider {
       to,
       from: this.fromNumber,
       url: `${this.baseUrl}/api/voice/callback?originalCallSid=${encodeURIComponent(callSid)}&claimedName=${encodeURIComponent(claimedName)}`,
-      statusCallback: `${this.baseUrl}/api/voice/callback/status?originalCallSid=${encodeURIComponent(callSid)}`,
+      statusCallback: `${this.baseUrl}/api/voice/callback-result?originalCallSid=${encodeURIComponent(callSid)}`,
       statusCallbackEvent: ["completed"],
       method: "POST",
     });
@@ -123,7 +124,7 @@ export class TwilioTelephony implements TelephonyProvider {
 
 export class MockTelephony implements TelephonyProvider {
   async sendSms(to: string, body: string): Promise<void> {
-    console.log(`[MockTelephony] SMS → ${to}: ${body}`);
+    console.log(`[MockTelephony] SMS → ${maskPhone(to)} (${body.length} chars)`);
 
     await adminDb().from("mock_messages").insert({
       to_number: to,
@@ -134,7 +135,7 @@ export class MockTelephony implements TelephonyProvider {
 
   async startCallbackCall(to: string, callSid: string, claimedName: string): Promise<void> {
     console.log(
-      `[MockTelephony] Callback call initiated → ${to} ` +
+      `[MockTelephony] Callback call initiated → ${maskPhone(to)} ` +
       `(originalCallSid: ${callSid}, claimedName: ${claimedName})`,
     );
 
@@ -146,7 +147,7 @@ export class MockTelephony implements TelephonyProvider {
   }
 
   async connectCall(callSid: string, toNumber: string): Promise<void> {
-    console.log(`[MockTelephony] Call ${callSid} connected → ${toNumber}`);
+    console.log(`[MockTelephony] Call ${callSid} connected → ${maskPhone(toNumber)}`);
   }
 
   async endCall(callSid: string): Promise<void> {

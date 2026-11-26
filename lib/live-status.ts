@@ -3,16 +3,14 @@
  *
  * Pure view-model for the Live page. No I/O, no clock: `now` is passed in.
  *
- * NOTE: `lib/call-evidence.ts` (alerts-and-report) and `timeWastedSummary`
- * (time-waster, `lib/time-waster.ts`) do not exist yet, so the small
- * equivalents below are local. Swap them for the shared helpers when those
- * land; the exported shape does not change.
+ * Time wasted comes from `timeWastedSummary` in `lib/time-waster.ts`.
  *
  * Safe word attempt text is never read. Only the `matched` boolean is used.
  */
 
 import type { CallEventRow, CallRow } from "@/lib/db";
 import { KNOWN_FLAG_IDS } from "@/lib/scoring/known-flags";
+import { timeWastedSummary } from "@/lib/time-waster";
 
 export type LiveLevel = "low" | "medium" | "high";
 export type SafeWordStatus = "not_asked" | "asked" | "passed" | "failed";
@@ -105,26 +103,12 @@ function deriveTimeWasted(
   events: CallEventRow[],
   now: number,
 ): LiveTimeWasted | null {
-  let startIdx = -1;
-  events.forEach((e, i) => {
-    if (e.type === "state_change" && e.payload["to"] === "time_wasted") startIdx = i;
-  });
-  if (startIdx < 0) return null;
-
-  const start = events[startIdx]!;
-  const startedAt = str(start.payload["started_at"]) ?? start.created_at;
-
-  const exit = events
-    .slice(startIdx + 1)
-    .find((e) => e.type === "state_change" && e.payload["from"] === "time_wasted");
-
-  const endedAt = exit
-    ? (str(exit.payload["ended_at"]) ?? exit.created_at)
-    : call.ended_at;
-
-  const endMs = endedAt ? ms(endedAt) : now;
-  const seconds = Math.max(0, Math.floor((endMs - ms(startedAt)) / 1000));
-  return { startedAt, endedAt: endedAt ?? null, seconds, running: !endedAt };
+  const summary = timeWastedSummary(events, new Date(now));
+  if (!summary) return null;
+  if (!summary.running || !call.ended_at) return summary;
+  // The call ended without an exit event: freeze at the call's end time.
+  const frozen = timeWastedSummary(events, new Date(ms(call.ended_at)));
+  return { ...frozen!, endedAt: call.ended_at, running: false };
 }
 
 function deriveSafeWord(events: CallEventRow[]): { status: SafeWordStatus; attempts: number } {

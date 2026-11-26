@@ -10,6 +10,8 @@ const mem = vi.hoisted(() => ({
   call: null as Record<string, any> | null,
   events: [] as Record<string, any>[],
   household: {} as Record<string, any>,
+  targets: [] as Record<string, any>[],
+  callbackCall: vi.fn(),
   gemini: vi.fn(),
   seq: 0,
 }));
@@ -27,6 +29,10 @@ vi.mock("@/lib/db", () => ({
     return row;
   },
   getCallEvents: async () => mem.events.slice(),
+  getCallbackTargets: async () => mem.targets,
+}));
+vi.mock("@/lib/providers", () => ({
+  getTelephony: () => ({ startCallbackCall: mem.callbackCall }),
 }));
 vi.mock("@/lib/alerts", () => ({ sendAlerts: vi.fn(async () => undefined) }));
 vi.mock("@/lib/scoring/ai", async (orig) => {
@@ -53,6 +59,8 @@ const FAMILY_REPLY = {
 
 function setup(timeWaster: boolean) {
   mem.events = [];
+  mem.targets = [];
+  mem.callbackCall.mockReset();
   mem.gemini.mockReset();
   mem.gemini.mockResolvedValue(FAMILY_REPLY);
   mem.household = {
@@ -89,6 +97,46 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
+});
+
+describe("engine starts the callback on a family claim (safe-word-and-callback task 10)", () => {
+  const TARGET = { id: "m1", name: "Alex", phone: "+16135550142", gets_alerts: true, is_callback_target: true };
+
+  it("claim turn: places one callback, holds the caller, and the next turn is still the challenge", async () => {
+    setup(false);
+    mem.targets = [TARGET];
+    const claim = await say("Hi Grandma, it's Emma");
+    expect(claim.hold).toBe(true);
+    expect(claim.reply).toBe("Please hold one moment.");
+    expect(claim.nextState).toBe("screening");
+    expect(mem.callbackCall).toHaveBeenCalledTimes(1);
+    expect(mem.callbackCall).toHaveBeenCalledWith("+16135550142", "CA_sw", "Emma");
+    expect(mem.events.filter((e) => e.type === "callback_started")).toHaveLength(1);
+
+    // The caller speaks after the hold (dev phone): the challenge is asked, not a second callback.
+    const next = await say("Hello? Are you there?");
+    expect(next.hold).toBe(false);
+    expect(next.reply).toBe("What's the family word?");
+    expect(mem.callbackCall).toHaveBeenCalledTimes(1);
+  });
+
+  it("no target: the caller gets the challenge straight away", async () => {
+    setup(false);
+    const claim = await say("Hi Grandma, it's Emma");
+    expect(claim.hold).toBe(false);
+    expect(claim.reply).toBe("What's the family word?");
+    expect(mem.callbackCall).not.toHaveBeenCalled();
+  });
+
+  it("simulated calls never place a callback", async () => {
+    setup(false);
+    mem.targets = [TARGET];
+    mem.call!.is_simulated = true;
+    const claim = await say("Hi Grandma, it's Emma");
+    expect(claim.hold).toBe(false);
+    expect(mem.callbackCall).not.toHaveBeenCalled();
+    expect(mem.events.some((e) => e.type === "callback_started")).toBe(false);
+  });
 });
 
 describe("engine safe word challenge", () => {

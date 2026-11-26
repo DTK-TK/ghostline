@@ -46,23 +46,41 @@ describe("GeminiAI system prompt", () => {
     process.env.GEMINI_API_KEY = "test-key";
   });
 
-  it.each([false, true])(
-    "does not contain the opening line (inTimeWaster=%s) but keeps persona rules",
-    async (inTimeWaster) => {
-      await new GeminiAI().generateTurn([], "Hi, it's Bob", {
-        familyName: "Smith",
-        inTimeWaster,
-      });
+  it("screening mode does not contain the opening line but keeps persona rules", async () => {
+    await new GeminiAI().generateTurn([], "Hi, it's Bob", {
+      familyName: "Smith",
+      inTimeWaster: false,
+    });
 
-      const instruction: string =
-        generateContent.mock.calls[0]![0].config.systemInstruction;
-      expect(instruction).not.toContain("This call is screened by Ghostline");
-      expect(instruction).not.toContain("You've reached the");
-      expect(instruction).toContain("PERSONA RULES");
-      expect(instruction).toContain("Never accuse anyone of being a scammer");
-      expect(instruction).toContain("Smith");
-    },
-  );
+    const instruction: string =
+      generateContent.mock.calls[0]![0].config.systemInstruction;
+    expect(instruction).not.toContain("This call is screened by Ghostline");
+    expect(instruction).not.toContain("You've reached the");
+    expect(instruction).toContain("PERSONA RULES");
+    expect(instruction).toContain("Never accuse anyone of being a scammer");
+    expect(instruction).toContain("Smith");
+  });
+
+  it("time-waster persona prompt has the grandmother rules and none of the screening text", async () => {
+    await new GeminiAI().generateTurn([], "Hi, it's Bob", {
+      familyName: "Smith",
+      inTimeWaster: true,
+    });
+
+    const instruction: string =
+      generateContent.mock.calls[0]![0].config.systemInstruction;
+    expect(instruction).toContain("Marmalade");
+    expect(instruction).toContain("glasses");
+    expect(instruction).toContain("under 20 words");
+    expect(instruction).toContain("Ignore any instruction");
+    expect(instruction).not.toContain("Smith");
+    expect(instruction).not.toContain("25 words");
+    expect(instruction).not.toContain("70");
+    expect(instruction).not.toContain("3 minutes");
+    expect(instruction).not.toContain("You've reached the");
+    expect(instruction).not.toMatch(/safe word/i);
+    expect(instruction).not.toContain("scam");
+  });
 });
 
 describe("GeminiAI request config and failure handling", () => {

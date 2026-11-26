@@ -15,11 +15,23 @@ import {
 import type { CallsPageData } from "@/lib/calls-list";
 import { formatStart } from "@/lib/format-start";
 import { riskDisplay } from "@/lib/risk-display";
+import { displaySeconds, formatMmSs, type TimeWastedSummary } from "@/lib/time-waster";
+import { useNow } from "@/lib/use-now";
 
 const linkClass =
   "rounded text-base font-medium text-primary underline underline-offset-4 outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
 
+function TimeWastedCell({ summary, now }: { summary: TimeWastedSummary | null; now: number }) {
+  if (!summary) return null;
+  return (
+    <span className="font-mono" suppressHydrationWarning>
+      {formatMmSs(displaySeconds(summary, now))}
+    </span>
+  );
+}
+
 export function CallsTable({ initial }: { initial: CallsPageData }) {
+  const now = useNow(1000);
   const [rows, setRows] = useState(initial.rows);
   const [cursor, setCursor] = useState(initial.nextCursor);
   const [loading, setLoading] = useState(false);
@@ -60,6 +72,7 @@ export function CallsTable({ initial }: { initial: CallsPageData }) {
             <TableHead className="text-base">Risk</TableHead>
             <TableHead className="text-base">Score</TableHead>
             <TableHead className="text-base">Outcome</TableHead>
+            <TableHead className="text-base">Scammer time wasted</TableHead>
             <TableHead className="text-base">Links</TableHead>
           </TableRow>
         </TableHeader>
@@ -88,6 +101,9 @@ export function CallsTable({ initial }: { initial: CallsPageData }) {
                       </Badge>
                     )}
                   </span>
+                </TableCell>
+                <TableCell>
+                  <TimeWastedCell summary={r.timeWasted} now={now} />
                 </TableCell>
                 <TableCell>
                   <span className="flex items-center gap-4">

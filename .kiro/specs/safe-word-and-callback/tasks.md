@@ -31,7 +31,7 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
   - _Proof: read that section of design.md._
   - _MVP, done: Already written in design.md._
 
-- [-] **4b. Prove it against the real seed.** Add a test that bcryptjs
+- [x] **4b. Prove it against the real seed.** Add a test that bcryptjs
   verifies the same hash under the `$2a$`, `$2b$` and `$2y$` prefixes. Run the
   seed on Supabase and confirm `left(safe_word_hash, 4)` and a successful
   "pumpkin" on the dev phone.
@@ -87,7 +87,7 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
     "Grandma it's me, I need help"; the reply is the challenge._
   - _MVP, build item 5: The challenge must still happen when Gemini is down._
 
-- [ ] **10. `lib/callback.ts` and callback start.** `startCallback` (guard:
+- [x] **10. `lib/callback.ts` and callback start.** `startCallback` (guard:
   once per call, needs a target and a clean name), `recordCallbackResult`,
   `holdDecision`, `maskPhone`. Start the callback from the engine and return
   hold TwiML (`Say` + `Pause 10` + `Redirect hold-check?n=1`).
@@ -96,7 +96,7 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
     no target or provider error gives `no_answer`._
   - _MVP, build item 6: Needed to start the callback and hold the caller._
 
-- [ ] **11. `POST /api/voice/callback`** (answer webhook) with the exact
+- [x] **11. `POST /api/voice/callback`** (answer webhook) with the exact
   prompt text and `Gather numDigits=1`, `claimedName` sanitised. Repoint
   `statusCallback` in `TwilioTelephony.startCallbackCall` to
   `/api/voice/callback-result`.
@@ -106,7 +106,7 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
   - _MVP, build item 6: The family member hears the prompt and presses a digit here._
   - _Re-plan: Also repoints the Twilio statusCallback to /api/voice/callback-result._
 
-- [ ] **1. Build `POST /api/voice/hold-check` and `POST /api/voice/callback-result`.**
+- [x] **1. Build `POST /api/voice/hold-check` and `POST /api/voice/callback-result`.**
   Both call `validateTwilioRequest` (403 on failure), keep logic in
   `lib/callback.ts`, and return safe TwiML on error.
   `callback-result` handles `Digits` (1 = `denied`, 2 = `confirmed`) and
@@ -121,7 +121,7 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
   - _MVP, build item 6: The hold-check and callback-result routes are the callback check._
   - _Re-plan: On denial, set HIGH through enterHighRisk() once time-waster tasks 5 and 12 land (build item 7); until then set the blocked state._
 
-- [ ] **2. Tests for both routes, reusing `tests/helpers/voice.ts`.**
+- [x] **2. Tests for both routes, reusing `tests/helpers/voice.ts`.**
   `tests/voice-callback-result.test.ts` and `tests/voice-hold-check.test.ts`,
   mocking `@/lib/db` with `vi.hoisted` like `tests/voice-turn.test.ts`, using
   `twilioRequest`, `parseTwiml`, `householdFixture`, `callFixture`.
@@ -133,7 +133,7 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
   - _Proof: `npx vitest run tests/voice-callback-result.test.ts tests/voice-hold-check.test.ts` passes._
   - _MVP, build item 6: Tests for the two new routes._
 
-- [ ] **5. Fix `combineScores`.** Add `callbackConfirmed` (-40, floor 0, ignored
+- [x] **5. Fix `combineScores`.** Add `callbackConfirmed` (-40, floor 0, ignored
   when denied). Apply the floor to the gross score and credits after it, as in
   design.md. Coordinate with conversation-and-scoring, which owns the file.
   - _Proof: `tests/scoring-combine.test.ts` cases listed in task 3; property:
@@ -141,7 +141,7 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
   - _MVP, build item 6: combineScores must use the callback result._
   - _Re-plan: Coordinate with conversation-and-scoring, which owns the file._
 
-- [ ] **3. Scoring tests.** In `tests/safe-word.test.ts`,
+- [x] **3. Scoring tests.** In `tests/safe-word.test.ts`,
   `tests/callback.test.ts` and `tests/scoring-combine.test.ts`:
   (a) a correct safe word lowers the score by exactly 40 (e.g. 45 to 5, 30 to 0),
   including a multi-turn case where the stored score is already 45;
@@ -152,19 +152,19 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
     passes. Case (a), multi-turn, fails until task 5 lands._
   - _MVP, build item 6: Proves the score effects of the safe word and the callback._
 
-- [ ] **13. Phone number privacy.** Remove full numbers from `MockTelephony`
+- [x] **13. Phone number privacy.** Remove full numbers from `MockTelephony`
   `console.log` output (use `maskPhone`). Never log the hash or attempts.
   - _Proof: `tests/callback.test.ts`: spy on `console.log` and `console.error`
     while starting a callback with a real-looking number; no call contains it._
   - _MVP, build item 6: Privacy rule: no full phone numbers in logs._
 
-- [ ] **15. Alerts on denial.** A denied result triggers the family alert and
+- [x] **15. Alerts on denial.** A denied result triggers the family alert and
   report through the alerts-and-report spec.
   - _Proof: `tests/voice-callback-result.test.ts`: the alert function is called
     once on `denied` and not on `confirmed` or `no_answer`._
   - _MVP, build item 8: A denied callback must alert the family once._
 
-- [ ] **12. Align the dev harness.** In `/api/dev/phone/callback-answer` and
+- [x] **12. Align the dev harness.** In `/api/dev/phone/callback-answer` and
   `phone-client.tsx`: 1 = denied, 2 = confirmed, reuse `recordCallbackResult`,
   fix the `callId`/`callSid` header comment.
   - _Proof: manual: dev phone buttons match the spoken prompt; a confirmed
@@ -177,7 +177,7 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
 
 Reason: Not needed to show the demo (the demo household is seeded with SQL), so these wait until after the hackathon.
 
-- [ ] **14. Settings uses `normalise`.** The Settings page (dashboard spec)
+- [x] **14. Settings uses `normalise`.** The Settings page (dashboard spec)
   must hash the normalised word with `bcryptjs`. Add a unit test of the helper
   that the Settings code will call.
   - _Proof: `tests/safe-word.test.ts`: `hashSafeWord("Pumpkins!")` verifies
@@ -190,16 +190,16 @@ Reason: Not needed to show the demo (the demo household is seeded with SQL), so 
 
 _A requirement whose tasks are all deferred is deferred with them. Task placement is in the two sections above._
 
-- [ ] **R1** Challenge and prompt. No code. See tasks 7, 9.
-- [ ] **R2** Normalisation. No code. See task 6.
-- [ ] **R3** Comparison. No `lib/safe-word.ts`; nothing imports `bcryptjs`. Tasks 4b, 6.
-- [ ] **R4** Success. No code. Tasks 5, 7.
-- [ ] **R5** Failure. No code; `safe_word_fail` points not implemented. Task 7.
-- [ ] **R6** Never exposed. Raw speech is stored and sent to Gemini today. Tasks 7, 8.
-- [ ] **R7** Callback initiation. Provider method exists, never called. Tasks 10, 11.
-- [ ] **R8** Results. Only a dev route, with reversed digits. Tasks 1, 5, 12.
-- [ ] **R9** Hold loop. No route. Task 1.
-- [ ] **R10** Webhook rules. The new routes do not exist. Tasks 1, 2, 11.
-- [ ] **R11** Score interaction. Hardcoded `false`; floor cancels credits. Tasks 5, 7.
-- [ ] **R12** Privacy. `MockTelephony` logs full numbers. Task 13.
-- [ ] **R13** Verification. No tests for any of this. Tasks 2, 3, 4b.
+- [~] **R1** Challenge and prompt. No code. See tasks 7, 9.
+- [~] **R2** Normalisation. No code. See task 6.
+- [~] **R3** Comparison. No `lib/safe-word.ts`; nothing imports `bcryptjs`. Tasks 4b, 6.
+- [~] **R4** Success. No code. Tasks 5, 7.
+- [~] **R5** Failure. No code; `safe_word_fail` points not implemented. Task 7.
+- [~] **R6** Never exposed. Raw speech is stored and sent to Gemini today. Tasks 7, 8.
+- [~] **R7** Callback initiation. Provider method exists, never called. Tasks 10, 11.
+- [~] **R8** Results. Only a dev route, with reversed digits. Tasks 1, 5, 12.
+- [~] **R9** Hold loop. No route. Task 1.
+- [~] **R10** Webhook rules. The new routes do not exist. Tasks 1, 2, 11.
+- [~] **R11** Score interaction. Hardcoded `false`; floor cancels credits. Tasks 5, 7.
+- [~] **R12** Privacy. `MockTelephony` logs full numbers. Task 13.
+- [~] **R13** Verification. No tests for any of this. Tasks 2, 3, 4b.

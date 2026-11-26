@@ -248,11 +248,11 @@ describe("engine: safe word and callback events", () => {
     expect(out.riskUpdate.score).toBe(100);
   });
 
-  it("a confirmed callback does not change the score", async () => {
+  it("a confirmed callback keeps its 40-point credit on later turns (R11)", async () => {
     const out = await run([
       { type: "callback_result", payload: { type: "callback_result", outcome: "confirmed" } },
     ]);
-    expect(out.riskUpdate.score).toBe(45);
+    expect(out.riskUpdate.score).toBe(5);
   });
 
   const failed = {

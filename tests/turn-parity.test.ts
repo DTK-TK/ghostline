@@ -51,8 +51,12 @@ beforeEach(() => {
   vi.stubEnv("MOCK_TELEPHONY", "true");
   vi.stubEnv("VERCEL_ENV", "");
   vi.stubEnv("PUBLIC_BASE_URL", "https://ghostline.test");
+  // ended_at is written with the current time; freeze it so both runs match.
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-12-01T10:00:00.000Z"));
 });
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllEnvs();
   vi.resetAllMocks();
 });

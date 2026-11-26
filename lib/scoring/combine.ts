@@ -6,17 +6,17 @@
  *
  * Rules (verbatim from scam-rules.md):
  *   final score = max(rules_score, ai_score)
- *   correct safe word â†’ subtract 40, floor 0 (never cancels callback_denied)
- *   callback_denied   â†’ add 100 (uncapped, never reduced by safe word)
+ *   correct safe word â†?subtract 40, floor 0 (never cancels callback_denied)
+ *   callback_denied   â†?add 100 (uncapped, never reduced by safe word)
  *
  * Risk bands:
- *   LOW     0 â€“ 39
- *   MEDIUM  40 â€“ 69
+ *   LOW     0 â€?39
+ *   MEDIUM  40 â€?69
  *   HIGH    70+
  *
  * Note: scam-rules.md uses LOW/MEDIUM/HIGH. The DB schema has an extra
  * "critical" level for future use; combine.ts never produces "critical"
- * directly â€” that is reserved for explicit overrides (e.g. a confirmed
+ * directly â€?that is reserved for explicit overrides (e.g. a confirmed
  * deepfake alert if that feature is added later).
  */
 
@@ -43,6 +43,13 @@ export interface CombineInput {
    * The final score must never go below this value.
    */
   priorScore: number;
+  /** True if a family-member callback confirmed the caller is who they claim (-40, floor 0). */
+  callbackConfirmed?: boolean;
+  /**
+   * Credit (see creditsFromEvents) already reflected in the stored priorScore.
+   * priorScore + priorCredits rebuilds the gross score the floor applies to.
+   */
+  priorCredits?: number;
 }
 
 export interface CombineResult {
@@ -54,6 +61,23 @@ export interface CombineResult {
 // ---------------------------------------------------------------------------
 // Band mapping
 // ---------------------------------------------------------------------------
+
+const CREDIT = 40;
+
+/**
+ * Credit (0, 40 or 80) earned by a correct safe word and a confirmed callback
+ * in the given call events. A denied callback cancels all credit.
+ */
+export function creditsFromEvents(
+  events: ReadonlyArray<{ type: string; payload: Record<string, unknown> }>,
+): number {
+  if (events.some((e) => e.type === "callback_result" && e.payload["outcome"] === "denied")) return 0;
+  const word = events.some((e) => e.type === "safe_word_attempt" && e.payload["matched"] === true);
+  const confirmed = events.some(
+    (e) => e.type === "callback_result" && e.payload["outcome"] === "confirmed",
+  );
+  return (word ? CREDIT : 0) + (confirmed ? CREDIT : 0);
+}
 
 export function scoreToLevel(score: number): RiskLevel {
   if (score >= 70) return "high";
@@ -75,29 +99,24 @@ export function scoreToLevel(score: number): RiskLevel {
  */
 export function combineScores(input: CombineInput): CombineResult {
   const { rulesScore, aiScore, allFlags, safeWordCorrect, callbackDenied, priorScore } = input;
+  const callbackConfirmed = input.callbackConfirmed ?? false;
+  const priorCredits = input.priorCredits ?? 0;
 
-  // 1. Take the higher of the two layers.
-  let score = Math.max(rulesScore, aiScore);
+  // Gross score: higher of the two layers, plus the hard denial escalation,
+  // floored by the prior gross score (stored net score plus credits already
+  // reflected in it). The floor applies BEFORE credits so a credit is never
+  // cancelled by it.
+  const gross = Math.max(
+    Math.max(rulesScore, aiScore) + (callbackDenied ? 100 : 0),
+    priorScore + priorCredits,
+  );
 
-  // 2. callback_denied is a hard escalation â€” applied before safe-word credit
-  //    so safe_word can never cancel a confirmed denial.
-  if (callbackDenied) {
-    score += 100;
-  }
+  // Credits (-40 each, floor 0). Never applied when the callback was denied.
+  const credits = (safeWordCorrect ? CREDIT : 0) + (callbackConfirmed ? CREDIT : 0);
+  const net = callbackDenied ? gross : Math.max(0, gross - credits);
 
-  // 3. Correct safe word subtracts 40, floor 0, but NOT if callback_denied.
-  if (safeWordCorrect && !callbackDenied) {
-    score = Math.max(0, score - 40);
-  }
+  // Hard cap at 100 for storage (the DB column is 0-100).
+  const score = Math.min(100, net);
 
-  // 4. Monotonic floor â€” score only ever rises across a call's lifetime.
-  score = Math.max(score, priorScore);
-
-  // 5. Hard cap at 100 for storage (the DB column is 0â€“100).
-  score = Math.min(100, score);
-
-  const level = scoreToLevel(score);
-  const flags = Array.from(new Set(allFlags));
-
-  return { score, flags, level };
+  return { score, flags: Array.from(new Set(allFlags)), level: scoreToLevel(score) };
 }

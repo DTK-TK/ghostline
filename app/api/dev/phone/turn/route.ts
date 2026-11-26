@@ -1,4 +1,4 @@
-﻿/**
+/**
  * POST /api/dev/phone/turn
  *
  * Dev-only adapter. Runs one spoken turn for the browser phone through the
@@ -7,13 +7,16 @@
  * Returns 404 when VERCEL_ENV === "production".
  *
  * Body: { callSid: string; speechResult: string }
- * Response: { reply, state, riskScore, riskLevel, flags, callbackPending? }
+ * Response: { reply, state, riskScore, riskLevel, flags, hangup, timeWasted?, callbackPending? }
+ * time_wasted is not terminal: the persona keeps replying until the engine
+ * ends the call (state "completed", hangup true).
  */
 
 import { notFound } from "next/navigation";
 import { getCallEvents } from "@/lib/db";
 import type { CallEventRow } from "@/lib/db";
 import { processTurn } from "@/lib/turn";
+import { timeWastedView } from "@/lib/time-waster";
 
 export const runtime = "nodejs";
 
@@ -44,6 +47,7 @@ export async function POST(req: Request): Promise<Response> {
       .map((e) => (typeof e.payload["flag"] === "string" ? e.payload["flag"] : ""))
       .filter(Boolean);
     const callbackPending = detectPendingCallback(events, result.call.id);
+    const timeWasted = timeWastedView(events, new Date());
 
     return Response.json({
       reply: result.reply,
@@ -51,6 +55,8 @@ export async function POST(req: Request): Promise<Response> {
       riskScore: result.riskScore,
       riskLevel: result.riskLevel,
       flags,
+      hangup: result.hangup === true,
+      ...(timeWasted ? { timeWasted } : {}),
       ...(callbackPending ? { callbackPending } : {}),
     });
   } catch (err) {

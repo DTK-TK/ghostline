@@ -10,13 +10,18 @@ const MAX_WORDS_EXCLUSIVE = 25; // 25 or more words is rejected
 const ACCUSATORY = /\b(scam|scams|scammer|scammers|fraud|frauds|fraudster|fraudsters|criminal|criminals)\b/i;
 const OPENING_LINES = [/this call is screened by ghostline/i, /you['\u2019]ve reached the/i];
 
-export function validateReply(text: string): string | null {
+export interface ReplyGuardOptions {
+  /** Replies with this many words or more are rejected. Default 25. */
+  maxWords?: number;
+}
+
+export function validateReply(text: string, options: ReplyGuardOptions = {}): string | null {
   if (typeof text !== "string") return null;
   const trimmed = text.trim();
   if (!trimmed) return null;
 
   const words = trimmed.split(/\s+/).length;
-  if (words >= MAX_WORDS_EXCLUSIVE) return null;
+  if (words >= (options.maxWords ?? MAX_WORDS_EXCLUSIVE)) return null;
 
   const sentences = trimmed.split(/[.!?]+(?:\s+|$)/).filter((s) => s.trim().length > 0);
   if (sentences.length > MAX_SENTENCES) return null;
