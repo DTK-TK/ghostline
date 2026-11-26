@@ -18,7 +18,7 @@
  *   │  bubble: CALLER              │                      │
  *   │                              │                      │
  *   │  ── Callback card ──         │                      │
- *   │  [Confirmed] [Denied] [—]    │                      │
+ *   │  [Press 1] [Press 2] [No ans]│                      │
  *   │                              │                      │
  *   │  [text input] [Talk] [Send]  │                      │
  *   │                              │                      │
@@ -28,6 +28,8 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { MockMessageRow } from "@/app/api/dev/phone/inbox/route";
+import { CALLBACK_BUTTONS } from "@/lib/dev-phone-buttons";
+import type { CallbackButton } from "@/lib/dev-phone-buttons";
 import { displaySeconds, formatMmSs } from "@/lib/time-waster";
 import type { TimeWastedView } from "@/lib/time-waster";
 
@@ -105,12 +107,6 @@ interface ActiveCall {
   timeWasted: TimeWastedView | null;
 }
 
-interface CallbackPending {
-  name: string;
-  phone: string;
-  originalCallSid: string;
-}
-
 interface HouseholdOption {
   id: string;
   family_name: string;
@@ -134,7 +130,8 @@ interface TurnResponse {
   flags?: string[];
   hangup?: boolean;
   timeWasted?: TimeWastedView;
-  callbackPending?: CallbackPending;
+  callbackPending?: boolean;
+  callbackTarget?: string;
   error?: string;
 }
 
@@ -181,7 +178,7 @@ export default function PhoneClient({ households }: { households: HouseholdOptio
   const [phase, setPhase] = useState<CallPhase>("idle");
   const [activeCall, setActiveCall] = useState<ActiveCall | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [callbackPending, setCallbackPending] = useState<CallbackPending | null>(null);
+  const [callbackPending, setCallbackPending] = useState<string | null>(null);
 
   // ── Input ─────────────────────────────────────────────────────────────────
   const [inputText, setInputText] = useState("");
@@ -286,9 +283,8 @@ export default function PhoneClient({ households }: { households: HouseholdOptio
         };
       });
 
-      if (json.callbackPending) {
-        setCallbackPending(json.callbackPending);
-      }
+      // Masked label only; the server never sends the full number.
+      setCallbackPending(json.callbackPending ? (json.callbackTarget ?? "family member") : null);
 
       // time_wasted is NOT terminal: the persona keeps talking until the
       // engine ends the call (state "completed").
@@ -427,7 +423,8 @@ export default function PhoneClient({ households }: { households: HouseholdOptio
   // ---------------------------------------------------------------------------
   // Callback card answer
   // ---------------------------------------------------------------------------
-  const handleCallbackAnswer = async (digit: "1" | "2" | "0") => {
+  const handleCallbackAnswer = async (button: CallbackButton) => {
+    const digit = button.digit;
     if (!activeCall || !callbackPending) return;
 
     try {
@@ -445,11 +442,7 @@ export default function PhoneClient({ households }: { households: HouseholdOptio
         return;
       }
 
-      const label =
-        digit === "2" ? "✅ Confirmed — it's really me"
-        : digit === "1" ? "🚫 Denied — that's not me"
-        : "📵 No answer";
-      pushSystem(`Callback: ${label}`);
+      pushSystem(`Callback: ${button.label}`);
 
       setActiveCall((prev) =>
         prev
@@ -578,33 +571,27 @@ export default function PhoneClient({ households }: { households: HouseholdOptio
           {callbackPending && (
             <div className="mx-4 mb-3 rounded-lg border border-amber-500/50 bg-amber-500/10 p-4 shrink-0">
               <p className="text-sm font-semibold text-amber-400 mb-1">
-                📲 Callback to {callbackPending.name}
+                📲 Callback to {callbackPending}
               </p>
               <p className="text-xs text-zinc-400 mb-3">
                 The caller claims to be this person. How does the family member respond?
               </p>
               <div className="flex gap-2">
-                <button
-                  onClick={() => { void handleCallbackAnswer("1"); }}
-                  className="flex-1 rounded bg-red-700 py-2 text-sm font-semibold text-white
-                             hover:bg-red-600 transition-colors"
-                >
-                  🚫 Not me, I&apos;m safe (press 1)
-                </button>
-                <button
-                  onClick={() => { void handleCallbackAnswer("2"); }}
-                  className="flex-1 rounded bg-green-700 py-2 text-sm font-semibold text-white
-                             hover:bg-green-600 transition-colors"
-                >
-                  ✅ It&apos;s me (press 2)
-                </button>
-                <button
-                  onClick={() => { void handleCallbackAnswer("0"); }}
-                  className="flex-1 rounded bg-zinc-700 py-2 text-sm font-semibold text-white
-                             hover:bg-zinc-600 transition-colors"
-                >
-                  📵 No answer
-                </button>
+                {CALLBACK_BUTTONS.map((b) => (
+                  <button
+                    key={b.digit}
+                    onClick={() => { void handleCallbackAnswer(b); }}
+                    className={`flex-1 rounded py-2 text-sm font-semibold text-white transition-colors ${
+                      b.outcome === "denied"
+                        ? "bg-red-700 hover:bg-red-600"
+                        : b.outcome === "confirmed"
+                          ? "bg-green-700 hover:bg-green-600"
+                          : "bg-zinc-700 hover:bg-zinc-600"
+                    }`}
+                  >
+                    {b.label}
+                  </button>
+                ))}
               </div>
             </div>
           )}

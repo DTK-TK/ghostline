@@ -10,7 +10,7 @@
  * lib/callback.ts): first result wins, confirmed lowers the score by 40,
  * denied goes on the HIGH path (time-waster or blocked) and sends the alert.
  *
- * Returns 404 when VERCEL_ENV === "production".
+ * Returns 404 unless devToolsEnabled() (lib/dev-gate.ts).
  *
  * Body: { callSid: string; digit: "1" | "2" | "0" }
  * Response: {
@@ -25,6 +25,7 @@
 import { recordCallbackResult } from "@/lib/callback";
 import type { CallbackOutcome } from "@/lib/callback";
 import { getCallBySid } from "@/lib/db";
+import { devToolsEnabled, devToolsNotFound } from "@/lib/dev-gate";
 
 export const runtime = "nodejs";
 
@@ -35,9 +36,7 @@ const DIGIT_OUTCOME: Record<string, CallbackOutcome> = {
 };
 
 export async function POST(req: Request): Promise<Response> {
-  if (process.env.VERCEL_ENV === "production") {
-    return new Response("Not found", { status: 404 });
-  }
+  if (!devToolsEnabled()) return devToolsNotFound();
 
   try {
     const body = (await req.json()) as { callSid?: string; digit?: string };

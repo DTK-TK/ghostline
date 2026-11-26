@@ -5,13 +5,13 @@
  * replicating the logic of /api/voice/incoming without Twilio signature
  * validation or TwiML.
  *
- * Returns 404 when VERCEL_ENV === "production".
+ * Returns 404 unless devToolsEnabled() (lib/dev-gate.ts).
  *
  * Body: { fromNumber: string, householdPhone: string }
  * Response: { callSid: string; callId: string; reply: string; state: string }
  */
 
-import { notFound } from "next/navigation";
+import { devToolsEnabled, devToolsNotFound } from "@/lib/dev-gate";
 import {
   getHouseholdByPhone,
   isTrustedContact,
@@ -21,7 +21,7 @@ import {
 export const runtime = "nodejs";
 
 export async function POST(req: Request): Promise<Response> {
-  if (process.env.VERCEL_ENV === "production") notFound();
+  if (!devToolsEnabled()) return devToolsNotFound();
 
   try {
     const body = await req.json() as { fromNumber?: string; householdPhone?: string };

@@ -16,7 +16,7 @@
 
 import twilio from "twilio";
 import { adminDb } from "@/lib/db";
-import { maskPhone } from "@/lib/phone";
+import { maskPhone, maskPhonesInText } from "@/lib/phone";
 
 // ---------------------------------------------------------------------------
 // Interface
@@ -136,7 +136,7 @@ export class MockTelephony implements TelephonyProvider {
   async startCallbackCall(to: string, callSid: string, claimedName: string): Promise<void> {
     console.log(
       `[MockTelephony] Callback call initiated → ${maskPhone(to)} ` +
-      `(originalCallSid: ${callSid}, claimedName: ${claimedName})`,
+      `(originalCallSid: ${callSid}, claimedName: ${maskPhonesInText(claimedName)})`,
     );
 
     await adminDb().from("mock_messages").insert({

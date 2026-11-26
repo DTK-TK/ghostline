@@ -161,7 +161,7 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
     `legitimate_caller` and confirm LOW, no alert, no report._
   - _MVP, build item 13: End-to-end proof of the simulator._
 
-- [ ] **18. Startup guard for providers.** `lib/providers/assert.ts` and
+- [x] **18. Startup guard for providers.** `lib/providers/assert.ts` and
   `instrumentation.ts` (`register()`; read the Next.js instrumentation doc
   first). In production, any mock, Ollama or unknown value stops startup with a
   clear message. Fix `.env.example` (dev lines commented, add `ENABLE_SIMULATOR`,
@@ -173,14 +173,14 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
     refuses to boot._
   - _MVP, build item 14: Production must refuse mock providers._
 
-- [ ] **19. Dev tools gate.** `lib/dev-gate.ts` `devToolsEnabled()` used by
+- [x] **19. Dev tools gate.** `lib/dev-gate.ts` `devToolsEnabled()` used by
   `app/dev/phone/page.tsx` and all `app/api/dev/phone/*` routes.
   - _Proof: `tests/dev-gate.test.ts`: production false, preview false without
     `ENABLE_DEV_TOOLS`, development true; manual: `/dev/phone` is 404 on a preview
     URL._
   - _MVP, build item 14: ENABLE_DEV_TOOLS gate for /dev/phone and its routes._
 
-- [ ] **20. Dev phone callback buttons.** Labels and digits to match the prompt:
+- [x] **20. Dev phone callback buttons.** Labels and digits to match the prompt:
   Press 1 = denied, Press 2 = confirmed, No answer. Use `recordCallbackResult`
   (safe-word-and-callback task 12). Stop returning the full callback number in
   the turn JSON. Remove `time_wasted` from the terminal list (time-waster task 13).
@@ -189,7 +189,7 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
   - _MVP, build item 14: Dev phone callback buttons must match the prompt._
   - _Re-plan: Decision: the dev phone is exempt from the 16 px rule._
 
-- [ ] **21. MockTelephony in the loop.** Once `alertCall` is wired
+- [x] **21. MockTelephony in the loop.** Once `alertCall` is wired
   (alerts-and-report task 5), SMS and callback rows reach `mock_messages`. Mask
   numbers in the inbox API response and in `MockTelephony` logs.
   - _Proof: `tests/alerts-once.test.ts`/manual: an alert for a HIGH dev-phone call

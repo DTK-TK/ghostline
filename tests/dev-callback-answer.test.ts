@@ -22,6 +22,7 @@ function answer(digit: string, callSid = "CA1") {
 }
 
 beforeEach(() => {
+  vi.stubEnv("ENABLE_DEV_TOOLS", "true");
   record.mockReset();
   getCallBySid.mockReset().mockResolvedValue(CALL);
   record.mockResolvedValue({ recorded: true, call: CALL, level: "low", score: 5, state: "screening" });

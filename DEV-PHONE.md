@@ -5,7 +5,7 @@
 A browser-based phone simulator that calls the same code paths as real Twilio webhooks, allowing full end-to-end testing without a live phone or Twilio account.
 
 **URL:** `/dev/phone`  
-**Production gate:** Returns 404 when `VERCEL_ENV === "production"`.
+**Gate:** `devToolsEnabled()` in `lib/dev-gate.ts`. Enabled only when `VERCEL_ENV` is not `production` AND (`ENABLE_DEV_TOOLS=true` OR `NODE_ENV=development`). So local `next dev` works; a Vercel preview returns 404 unless `ENABLE_DEV_TOOLS=true` is set; production is always 404.
 
 ---
 
@@ -48,7 +48,7 @@ A browser-based phone simulator that calls the same code paths as real Twilio we
 
 ## API Routes
 
-All routes return 404 when `VERCEL_ENV === "production"`.
+All routes return 404 unless `devToolsEnabled()` is true (see Gate above).
 
 ### `POST /api/dev/phone/start`
 Starts a call. Replicates `/api/voice/incoming` logic without Twilio signature validation or TwiML.
@@ -201,7 +201,7 @@ app/api/dev/phone/
 
 ## Testing checklist
 
-- [x] Page returns 404 when `VERCEL_ENV=production`
+- [x] Page returns 404 when `VERCEL_ENV=production` or on preview without `ENABLE_DEV_TOOLS=true`
 - [x] Call start creates a `calls` row with a `DEV_` CallSid
 - [x] Typed input → turn → reply → chat bubble + spoken aloud
 - [x] Hold Talk button → SpeechRecognition → transcript → turn

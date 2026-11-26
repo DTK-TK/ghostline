@@ -249,6 +249,16 @@
         "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
         "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
         "timestamp": 1795687407440
+      },
+      {
+        "executionId": "9ff68315-2d18-4489-bd4a-dd7872b8e63b",
+        "chatSessionId": "sess_f5b2d0d3-636c-499c-82ae-f439ea864f3c",
+        "timestamp": 1795711175549
+      },
+      {
+        "executionId": "9ff68315-2d18-4489-bd4a-dd7872b8e63b",
+        "chatSessionId": "sess_f5b2d0d3-636c-499c-82ae-f439ea864f3c",
+        "timestamp": 1795711262950
       }
     ],
     "**19. Dev tools gate.** `lib/dev-gate.ts` `devToolsEnabled()` used by": [
@@ -256,6 +266,16 @@
         "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
         "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
         "timestamp": 1795687407670
+      },
+      {
+        "executionId": "9ff68315-2d18-4489-bd4a-dd7872b8e63b",
+        "chatSessionId": "sess_f5b2d0d3-636c-499c-82ae-f439ea864f3c",
+        "timestamp": 1795711264905
+      },
+      {
+        "executionId": "9ff68315-2d18-4489-bd4a-dd7872b8e63b",
+        "chatSessionId": "sess_f5b2d0d3-636c-499c-82ae-f439ea864f3c",
+        "timestamp": 1795711382714
       }
     ],
     "**20. Dev phone callback buttons.** Labels and digits to match the prompt:": [
@@ -263,6 +283,16 @@
         "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
         "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
         "timestamp": 1795687407793
+      },
+      {
+        "executionId": "9ff68315-2d18-4489-bd4a-dd7872b8e63b",
+        "chatSessionId": "sess_f5b2d0d3-636c-499c-82ae-f439ea864f3c",
+        "timestamp": 1795711384533
+      },
+      {
+        "executionId": "9ff68315-2d18-4489-bd4a-dd7872b8e63b",
+        "chatSessionId": "sess_f5b2d0d3-636c-499c-82ae-f439ea864f3c",
+        "timestamp": 1795711549501
       }
     ],
     "**21. MockTelephony in the loop.** Once `alertCall` is wired": [
@@ -270,6 +300,16 @@
         "executionId": "a9ee03e7-5aee-4db9-a846-325fd07d460d",
         "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
         "timestamp": 1795687407932
+      },
+      {
+        "executionId": "9ff68315-2d18-4489-bd4a-dd7872b8e63b",
+        "chatSessionId": "sess_f5b2d0d3-636c-499c-82ae-f439ea864f3c",
+        "timestamp": 1795711549647
+      },
+      {
+        "executionId": "9ff68315-2d18-4489-bd4a-dd7872b8e63b",
+        "chatSessionId": "sess_f5b2d0d3-636c-499c-82ae-f439ea864f3c",
+        "timestamp": 1795711656665
       }
     ],
     "**6. Realtime client and merge.** `lib/supabase-browser.ts` (one client per": [

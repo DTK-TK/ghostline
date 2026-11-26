@@ -50,6 +50,7 @@ function setup() {
 beforeEach(() => {
   vi.stubEnv("MOCK_TELEPHONY", "true");
   vi.stubEnv("VERCEL_ENV", "");
+  vi.stubEnv("ENABLE_DEV_TOOLS", "true");
   vi.stubEnv("PUBLIC_BASE_URL", "https://ghostline.test");
   // ended_at is written with the current time; freeze it so both runs match.
   vi.useFakeTimers({ toFake: ["Date"] });

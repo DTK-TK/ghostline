@@ -10,6 +10,8 @@ const mem = vi.hoisted(() => ({
   failFor: new Set<string>(),
   call: null as Record<string, unknown> | null,
   events: [] as Record<string, unknown>[],
+  rows: [] as { id?: string; to_number: string; body: string; kind: string; created_at?: string }[],
+  useMock: false,
 }));
 
 const FAMILY = [
@@ -18,6 +20,17 @@ const FAMILY = [
 ];
 
 vi.mock("@/lib/db", () => ({
+  adminDb: () => ({
+    from: () => ({
+      insert: async (row: { to_number: string; body: string; kind: string }) => {
+        mem.rows.push(row);
+        return { error: null };
+      },
+      select: () => ({
+        order: () => ({ limit: async () => ({ data: mem.rows, error: null }) }),
+      }),
+    }),
+  }),
   getHousehold: async () => ({ id: "h1", family_name: "Sun" }),
   getAlertRecipients: async () => FAMILY,
   getCallbackTargets: async () => FAMILY.filter((m) => m.is_callback_target),
@@ -35,7 +48,7 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 vi.mock("@/lib/providers", () => ({
-  getTelephony: () => ({
+  getTelephony: () => mem.useMock ? new (globalThis as unknown as { __Mock: new () => never }).__Mock() : ({
     sendSms: async (to: string, body: string) => {
       if (mem.failFor.has(to)) throw new Error(`boom ${to} ${body}`);
       mem.sms.push({ to, body });
@@ -48,6 +61,9 @@ vi.mock("@/lib/report", () => ({ buildAndStoreReport: async () => undefined }));
 import { sendAlerts, type AlertContext } from "@/lib/alerts";
 import { alertCall } from "@/lib/alert-call";
 import { handleCallStatus } from "@/lib/voice-status";
+import { MockTelephony } from "@/lib/providers/telephony";
+import { GET as inboxGET } from "@/app/api/dev/phone/inbox/route";
+(globalThis as unknown as { __Mock: unknown }).__Mock = MockTelephony;
 
 const context: AlertContext = {
   call: {
@@ -162,5 +178,68 @@ describe("sendAlerts checklist", () => {
     expect(mem.sms).toHaveLength(4);
     expect(steps.map((s) => s.to)).toEqual(["+15550100001", "+15550100002"]);
     for (const s of steps) expect(s.body).toContain("Call Alex first.");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Dashboard-and-simulator task 21: MockTelephony in the loop, masked output.
+// ---------------------------------------------------------------------------
+
+describe("task 21: HIGH call reaches the mock store, once, with no full number", () => {
+  it("writes one risk SMS and one checklist SMS per recipient, and a repeat adds none", async () => {
+    mem.rows = [];
+    mem.call = { ...context.call, payment_method: "gift card", state: "scam_blocked" };
+    mem.useMock = true;
+    const logs = [
+      vi.spyOn(console, "log").mockImplementation(() => {}),
+      vi.spyOn(console, "error").mockImplementation(() => {}),
+      vi.spyOn(console, "warn").mockImplementation(() => {}),
+    ];
+    try {
+      await alertCall(context.call.id);
+      await alertCall(context.call.id);
+      const sms = mem.rows.filter((r) => r.kind === "sms");
+      expect(sms).toHaveLength(4);
+      for (const m of FAMILY) {
+        const mine = sms.filter((r) => r.to_number === m.phone);
+        expect(mine.filter((r) => r.body.includes("GHOSTLINE STEPS"))).toHaveLength(1);
+        expect(mine.filter((r) => !r.body.includes("GHOSTLINE STEPS"))).toHaveLength(1);
+      }
+      const logged = JSON.stringify(logs.flatMap((l) => l.mock.calls));
+      expect(logged).toContain("MockTelephony");
+      for (const m of FAMILY) expect(logged).not.toContain(m.phone);
+      await new MockTelephony().startCallbackCall(FAMILY[0]!.phone, "CA1", "Sam +15559876543");
+      const after = JSON.stringify(logs.flatMap((l) => l.mock.calls));
+      expect(after).not.toContain("+15559876543");
+      expect(after).not.toContain(FAMILY[0]!.phone);
+    } finally {
+      mem.useMock = false;
+      logs.forEach((l) => l.mockRestore());
+    }
+  });
+});
+
+describe("task 21: inbox route masks numbers", () => {
+  it("returns only masked numbers, also inside the body", async () => {
+    vi.stubEnv("ENABLE_DEV_TOOLS", "true");
+    vi.stubEnv("VERCEL_ENV", "");
+    mem.rows = [
+      { id: "1", to_number: "+14165550123", body: "Call +14165550123 now", kind: "sms", created_at: "2026-01-01T00:00:00Z" },
+      { id: "2", to_number: "+14165550123", body: JSON.stringify({ originalCallSid: "CA1", claimedName: "Sam" }), kind: "callback_call", created_at: "2026-01-01T00:00:01Z" },
+    ];
+    const res = await inboxGET(new Request("http://localhost/api/dev/phone/inbox"));
+    const text = await res.text();
+    expect(res.status).toBe(200);
+    expect(text).not.toContain("14165550123");
+    expect(JSON.parse(text).messages[0].to_number).toBe("***0123");
+    vi.unstubAllEnvs();
+  });
+
+  it("is a 404 when the dev gate is closed", async () => {
+    vi.stubEnv("VERCEL_ENV", "production");
+    vi.stubEnv("ENABLE_DEV_TOOLS", "true");
+    const res = await inboxGET(new Request("http://localhost/api/dev/phone/inbox"));
+    expect(res.status).toBe(404);
+    vi.unstubAllEnvs();
   });
 });

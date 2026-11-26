@@ -4,13 +4,14 @@
  * Dev-only. Returns all rows from mock_messages, newest first.
  * Used by the Mock Inbox panel in /dev/phone.
  *
- * Returns 404 when VERCEL_ENV === "production".
+ * Returns 404 unless devToolsEnabled() (lib/dev-gate.ts).
  *
  * Response: { messages: MockMessageRow[] }
  */
 
-import { notFound } from "next/navigation";
+import { devToolsEnabled, devToolsNotFound } from "@/lib/dev-gate";
 import { adminDb } from "@/lib/db";
+import { maskPhone, maskPhonesInText } from "@/lib/phone";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -26,7 +27,7 @@ const MockMessageSchema = z.object({
 export type MockMessageRow = z.infer<typeof MockMessageSchema>;
 
 export async function GET(req: Request): Promise<Response> {
-  if (process.env.VERCEL_ENV === "production") notFound();
+  if (!devToolsEnabled()) return devToolsNotFound();
 
   // Allow optional ?since=ISO8601 to poll for new messages only.
   const url = new URL(req.url);
@@ -46,7 +47,11 @@ export async function GET(req: Request): Promise<Response> {
     const { data, error } = await query;
     if (error) throw error;
 
-    const messages = (data ?? []).map((row) => MockMessageSchema.parse(row));
+    // Masked numbers only: the full number never leaves the server.
+    const messages = (data ?? []).map((row) => {
+      const m = MockMessageSchema.parse(row);
+      return { ...m, to_number: maskPhone(m.to_number), body: maskPhonesInText(m.body) };
+    });
     return Response.json({ messages });
   } catch (err) {
     console.error("[dev/phone/inbox] error:", err instanceof Error ? err.message : err);

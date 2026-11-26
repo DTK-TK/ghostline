@@ -7,11 +7,12 @@
 
 import { notFound } from "next/navigation";
 import PhoneClient from "./phone-client";
+import { devToolsEnabled } from "@/lib/dev-gate";
 import { adminDb } from "@/lib/db";
 import { HouseholdSchema } from "@/lib/db";
 
 export default async function DevPhonePage() {
-  if (process.env.VERCEL_ENV === "production") notFound();
+  if (!devToolsEnabled()) notFound();
 
   // Load households so the user can pick one from a dropdown.
   const { data, error } = await adminDb()
