@@ -215,8 +215,8 @@ export async function engine(input: EngineInput): Promise<EngineOutput> {
   await updateCall(callSid, {
     risk_score: combined.score,
     risk_level: combined.level,
-    claimed_identity: geminiResult?.claimed_identity ?? call.claimed_identity,
-    summary: geminiResult?.summary ?? call.summary,
+    claimed_identity: geminiResult?.claimed_identity ?? call.claimed_identity ?? undefined,
+    summary: geminiResult?.summary ?? call.summary ?? undefined,
   });
 
   // 10. Determine next state.

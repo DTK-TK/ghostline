@@ -19,7 +19,7 @@
  * Both messages include the PUBLIC_BASE_URL dashboard link.
  */
 
-import twilio from "twilio";
+import { getTelephony } from "@/lib/providers";
 import {
   getCallEvents,
   getAlertRecipients,
@@ -144,14 +144,8 @@ export async function sendAlerts(context: AlertContext): Promise<void> {
 
   const baseUrl = process.env.PUBLIC_BASE_URL ?? "";
   const dashboardUrl = `${baseUrl}/calls/${call.id}`;
-  const twilioFrom = process.env.TWILIO_PHONE_NUMBER;
-  if (!twilioFrom) throw new Error("Missing TWILIO_PHONE_NUMBER");
 
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken  = process.env.TWILIO_AUTH_TOKEN;
-  if (!accountSid || !authToken) throw new Error("Missing Twilio credentials");
-
-  const client = twilio(accountSid, authToken);
+  const telephony = getTelephony();
   const sent = await sentAlertKeys(call.id);
 
   const alertBody    = buildAlertSms(context, dashboardUrl);
@@ -166,11 +160,7 @@ export async function sendAlerts(context: AlertContext): Promise<void> {
     // --- Primary risk alert ---
     const riskKey = `risk:${member.phone}`;
     if (!sent.has(riskKey)) {
-      await client.messages.create({
-        to: member.phone,
-        from: twilioFrom,
-        body: alertBody,
-      });
+      await telephony.sendSms(member.phone, alertBody);
       await appendEvent({
         call_id: call.id,
         type: "alert_sent",
@@ -187,11 +177,7 @@ export async function sendAlerts(context: AlertContext): Promise<void> {
     if (checklistBody) {
       const checkKey = `checklist:${member.phone}`;
       if (!sent.has(checkKey)) {
-        await client.messages.create({
-          to: member.phone,
-          from: twilioFrom,
-          body: checklistBody,
-        });
+        await telephony.sendSms(member.phone, checklistBody);
         await appendEvent({
           call_id: call.id,
           type: "alert_sent",

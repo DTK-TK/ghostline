@@ -61,6 +61,16 @@ export function parseFormBody(text: string): Record<string, string> {
 export async function validateTwilioRequest(
   req: Request,
 ): Promise<Record<string, string>> {
+  // Dev/test only: with MOCK_TELEPHONY=true there is no real Twilio, so there
+  // is nothing to sign. Never skipped in production (the provider layer also
+  // refuses to start with mocks there).
+  if (
+    process.env.MOCK_TELEPHONY === "true" &&
+    process.env.VERCEL_ENV !== "production"
+  ) {
+    return parseFormBody(await req.text());
+  }
+
   const authToken = process.env.TWILIO_AUTH_TOKEN;
   const baseUrl = process.env.PUBLIC_BASE_URL;
 

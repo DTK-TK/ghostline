@@ -14,3 +14,5 @@ Conversation state lives in the database keyed by Twilio CallSid, never in memor
 (serverless functions do not share memory).
 
 Each webhook must reply to Twilio within 10 seconds: keep Gemini prompts short.
+
+All external services go through lib/providers. Mocks exist for telephony and AI; production must use the real ones
