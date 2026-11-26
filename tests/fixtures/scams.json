@@ -80,9 +80,7 @@
                        "I\u0027m calling from your bank about unusual activity on your account.",
                        "To protect your money, withdraw cash and give it to our courier today. Please keep this secret."
                    ],
-        "expectedLevel":  "high",
-        "knownGap":  true,
-        "reason":  "Bare \"bank\" is not an authority pattern and \"give it to our courier\" matches no payment_method pattern; only secrecy fires, score 30 (LOW). See task 13."
+        "expectedLevel":  "high"
     },
     {
         "id":  "scam-tech-1",

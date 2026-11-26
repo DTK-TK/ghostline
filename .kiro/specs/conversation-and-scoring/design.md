@@ -122,10 +122,12 @@ it, or screen for up to 3 caller turns first. Default if unanswered: up to
    it rethrows and the route returns the generic error TwiML.
 8. AI `flags` are `z.array(z.string())` and are persisted as `red_flag`
    events without checking against the known ids.
-9. Rules signals narrower than `scam-rules.md`: authority matches
-   "bank fraud department" but not "bank"; payment matches "wire transfer"
-   but not "wire", and courier only with "pick/collect"; remote access
-   matches "install" only when followed by "this/our/the". Broad matches
+9. Rules signals (updated in task 17, see R3): authority and remote access
+   now match whole-word "bank" and "install". Bare "wire" and "courier" match
+   `payment_method` only with money context (cash, money, funds, $, payment,
+   gift card, within 40 characters) in the same caller turn. "Courier will
+   pick up / collect" has no unconditional pattern of its own (false
+   positives on real deliveries and banks). Broad matches
    (`emergency`, `hospital`, `in trouble`) risk false positives: a doctor's
    office saying "hospital" plus "right now" scores 45 (MEDIUM).
 10. No reply guard exists, so the 25-word and no-accusation rules are

@@ -12,7 +12,7 @@
  */
 
 // ---------------------------------------------------------------------------
-// Rule table — mirrored from scam-rules.md
+// Rule table �?mirrored from scam-rules.md
 // ---------------------------------------------------------------------------
 
 export interface RuleFlag {
@@ -20,6 +20,11 @@ export interface RuleFlag {
   points: number;
   /** Keyword/phrase patterns that trigger this flag. */
   patterns: RegExp[];
+  /**
+   * Patterns that must match inside a SINGLE caller turn (money context for
+   * words like "wire" or "courier" that are harmless on their own).
+   */
+  sameTurnPatterns?: RegExp[];
 }
 
 /** All scam signal rules, ordered by weight descending. */
@@ -36,9 +41,14 @@ export const RULES: RuleFlag[] = [
       /wire\s*transfer/i,
       /western\s*union/i,
       /money\s*gram/i,
-      /courier\s*(will\s*)?(pick|collect)/i,
       /someone\s+will\s+pick\s+it\s+up/i,
       /e[-\s]?transfer/i,
+    ],
+    sameTurnPatterns: [
+      // bare "wire" / "courier" only count with money context in the same turn
+      /\bwire[ds]?\b.{0,40}\b(money|funds?|cash|transfer|send)\b|\b(money|funds?|cash|transfer|send)\b.{0,40}\bwire[ds]?\b|\bwire[ds]?\b.{0,40}\$|\$.{0,40}\bwire[ds]?\b/i,
+      // courier (incl. "courier will pick up / collect") needs money context within 40 chars
+      /\bcourier\b.{0,40}(\b(cash|money|funds?|payment|gift\s*card)\b|\$)|(\b(cash|money|funds?|payment|gift\s*card)\b|\$).{0,40}\bcourier\b/i,
     ],
   },
   {
@@ -68,7 +78,7 @@ export const RULES: RuleFlag[] = [
       /\bjudge\b/i,
       /arrest\s*warrant/i,
       /microsoft\s*(support|tech)/i,
-      /\bbank\s+fraud\s+department/i,
+      /\bbank\b/i,
       /visa\s+security/i,
       /mastercard\s+security/i,
       /\blawyer\b/i,
@@ -117,7 +127,7 @@ export const RULES: RuleFlag[] = [
       /\bremote\s+(access|desktop|control)\b/i,
       /download\s+(this|the|our)\s+(app|software|program)/i,
       /give\s+(me|us)\s+(the\s+)?code/i,
-      /\binstall\b.*\b(this|our|the)\b/i,
+      /\binstall\b/i,
       /grant\s+(me|us)\s+access/i,
     ],
   },
@@ -139,7 +149,7 @@ export interface RulesResult {
  *
  * @param transcript - Array of caller utterances collected so far.
  *   Caller turns only; system/persona lines must NOT be included.
- * @returns { score, flags } — score is the sum of unique flag weights.
+ * @returns { score, flags } �?score is the sum of unique flag weights.
  *   Each flag fires at most once per call regardless of repetition.
  */
 export function scoreRules(transcript: string[]): RulesResult {
@@ -147,12 +157,10 @@ export function scoreRules(transcript: string[]): RulesResult {
   const triggered = new Set<string>();
 
   for (const rule of RULES) {
-    for (const pattern of rule.patterns) {
-      if (pattern.test(combined)) {
-        triggered.add(rule.id);
-        break; // one hit is enough to fire the flag
-      }
-    }
+    const hit =
+      rule.patterns.some((p) => p.test(combined)) ||
+      (rule.sameTurnPatterns ?? []).some((p) => transcript.some((turn) => p.test(turn)));
+    if (hit) triggered.add(rule.id); // one hit is enough to fire the flag
   }
 
   const flags = Array.from(triggered);

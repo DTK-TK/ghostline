@@ -63,8 +63,13 @@ network. It scores all caller utterances so far, not only the latest one.
 | `callback_denied` | 100 (applied in R5) |
 
 - Each text-based flag fires once per call, however often it is repeated.
-- Every example signal in `scam-rules.md` must trigger its flag, including
-  bare "bank", "wire", "courier" and "install".
+- Every example signal in `scam-rules.md` must trigger its flag. Whole-word
+  "bank" (`authority`) and "install" (`remote_access`) trigger alone. Bare
+  "wire" and "courier" do not: they trigger `payment_method` only with money
+  context in the same caller turn ("wire" near money, funds, cash, $, transfer
+  or send; "courier", including "courier will pick up / collect", within 40 characters of
+  cash, money, funds, $, payment or gift card). Reason: false
+  positives on real deliveries and banks.
 - `safe_word_fail` points are added to the rules score by the engine from
   `safe_word_attempt` events with `matched: false`.
 - Ordinary speech from legitimate callers (doctor's office, pharmacy,
