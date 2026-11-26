@@ -17,6 +17,7 @@ import { z } from "zod";
 import { scoreRules, type RulesResult } from "@/lib/scoring/rules";
 import { filterKnownFlags } from "@/lib/scoring/known-flags";
 import { extractAmount, extractPaymentMethod } from "@/lib/extract-evidence";
+import { claimsFamilyByPattern } from "@/lib/family-claim";
 
 // ---------------------------------------------------------------------------
 // Shared schema (from conversation-and-scoring spec)
@@ -203,9 +204,7 @@ export class MockAI implements AIProvider {
 
     // Heuristic field extraction from the latest speech
     const claimed_identity = extractIdentity(latestSpeech);
-    const claims_family = /grandson|granddaughter|son|daughter|family|mom|dad/i.test(
-      latestSpeech,
-    );
+    const claims_family = claimsFamilyByPattern(latestSpeech);
     const requested_amount = extractAmount(latestSpeech);
     const payment_method = extractPaymentMethod(latestSpeech);
     const summary = `Turn ${turnIndex + 1}: ${latestSpeech.slice(0, 50)}…`;

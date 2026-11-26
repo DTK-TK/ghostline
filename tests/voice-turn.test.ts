@@ -189,6 +189,53 @@ describe("POST /api/voice/turn: silence", () => {
   });
 });
 
+describe("POST /api/voice/turn: safe word redaction", () => {
+  const WORD = "pumpkin";
+  const sys = (text: string) => ({
+    type: "transcript",
+    payload: { type: "transcript", text, speaker: "system" },
+  });
+  const caller = (text: string) => ({
+    type: "transcript",
+    payload: { type: "transcript", text, speaker: "caller" },
+  });
+
+  function serializedAppends(): string[] {
+    return db.appendEvent.mock.calls.map((c) => JSON.stringify(c));
+  }
+
+  it.each([
+    ["challenge", "What's the family word?"],
+    ["retry", "Sorry, I didn't catch that. What's the family word?"],
+  ])("during the %s line, no appendEvent payload contains the spoken word", async (_n, line) => {
+    db.getCallEvents.mockResolvedValue([caller("Grandma it's me"), sys(line)]);
+    engineReturns("screening", "low", 0, "Sorry, I didn't catch that. What's the family word?");
+
+    const res = await turn({ ...SPEECH, SpeechResult: `It's ${WORD}!` });
+    const xml = await res.text();
+
+    expect(res.status).toBe(200);
+    expect(parseTwiml(xml)).toEqual(["Gather", "Say", "Redirect"]);
+    expect(db.appendEvent).toHaveBeenCalledWith({
+      call_id: callFixture().id,
+      type: "transcript",
+      payload: { type: "transcript", text: "[safe word attempt]", speaker: "caller" },
+    });
+    for (const serialized of serializedAppends()) {
+      expect(serialized.toLowerCase()).not.toContain(WORD);
+    }
+  });
+
+  it("outside the challenge, speech is stored as usual", async () => {
+    db.getCallEvents.mockResolvedValue([caller("Hi"), sys("Could you tell me more?")]);
+    engineReturns("screening");
+
+    await turn({ ...SPEECH, SpeechResult: `I like ${WORD} pie` });
+
+    expect(serializedAppends().some((s) => s.includes(WORD))).toBe(true);
+  });
+});
+
 describe("POST /api/voice/turn: failures", () => {
   it("unknown CallSid: Say + Record fallback", async () => {
     db.getCallBySid.mockResolvedValue(null);

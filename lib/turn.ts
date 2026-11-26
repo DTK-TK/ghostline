@@ -9,7 +9,8 @@
  * All state lives in the database, keyed by CallSid.
  */
 
-import { getCallBySid, getHousehold, updateCall, appendEvent } from "@/lib/db";
+import { getCallBySid, getCallEvents, getHousehold, updateCall, appendEvent } from "@/lib/db";
+import { inChallengePhase, SAFE_WORD_TRANSCRIPT } from "@/lib/safe-word-phase";
 import type { CallRow, CallState, HouseholdRow, RiskLevel } from "@/lib/db";
 import { engine } from "@/lib/conversation";
 import { countConsecutiveSilence } from "@/lib/silence";
@@ -66,11 +67,19 @@ export async function processTurn(input: TurnInput): Promise<TurnResult> {
   const household = await getHousehold(call.household_id);
   if (!household) return { kind: "not_found" };
 
-  // Store the caller turn first (empty string = silence).
+  // Store the caller turn first (empty string = silence). A safe word attempt
+  // is stored as a placeholder, never as the spoken text. Terminal calls
+  // accept no attempts, so they skip the lookup.
+  const attemptTurn =
+    !TERMINAL.includes(call.state) && inChallengePhase(await getCallEvents(call.id));
   await appendEvent({
     call_id: call.id,
     type: "transcript",
-    payload: { type: "transcript", text: speech, speaker: "caller" },
+    payload: {
+      type: "transcript",
+      text: attemptTurn ? SAFE_WORD_TRANSCRIPT : speech,
+      speaker: "caller",
+    },
   });
 
   const base = {

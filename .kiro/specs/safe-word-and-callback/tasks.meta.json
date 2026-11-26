@@ -1,0 +1,60 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "**4b. Prove it against the real seed.** Add a test that bcryptjs": [
+      {
+        "executionId": "a51ff1d1-0913-4185-9d84-0f6d5d89947c",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795691411764
+      }
+    ],
+    "**6. `lib/safe-word.ts`.** `normalise`, `stripLeadIn`, `checkSafeWord`": [
+      {
+        "executionId": "a51ff1d1-0913-4185-9d84-0f6d5d89947c",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795691465975
+      },
+      {
+        "executionId": "a51ff1d1-0913-4185-9d84-0f6d5d89947c",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795691531977
+      }
+    ],
+    "**7. Engine: challenge and attempts.** Ask \"What's the family word?\" on a": [
+      {
+        "executionId": "a51ff1d1-0913-4185-9d84-0f6d5d89947c",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795691535625
+      },
+      {
+        "executionId": "a51ff1d1-0913-4185-9d84-0f6d5d89947c",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795691866185
+      }
+    ],
+    "**8. Redact before the transcript write.** Adjust": [
+      {
+        "executionId": "a51ff1d1-0913-4185-9d84-0f6d5d89947c",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795691866337
+      },
+      {
+        "executionId": "a51ff1d1-0913-4185-9d84-0f6d5d89947c",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795691923996
+      }
+    ],
+    "**9. Deterministic family-claim fallback.** When the AI is unavailable,": [
+      {
+        "executionId": "a51ff1d1-0913-4185-9d84-0f6d5d89947c",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795691924536
+      },
+      {
+        "executionId": "a51ff1d1-0913-4185-9d84-0f6d5d89947c",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795692302484
+      }
+    ]
+  }
+}

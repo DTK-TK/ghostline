@@ -30,6 +30,20 @@ import { validateReply } from "@/lib/scoring/reply-guard";
 import { filterKnownFlags } from "@/lib/scoring/known-flags";
 import { sendAlerts } from "@/lib/alerts";
 import { extractAmount, extractPaymentMethod, nonEmpty } from "@/lib/extract-evidence";
+import { checkSafeWord } from "@/lib/safe-word";
+import { claimsFamilyByPattern } from "@/lib/family-claim";
+import {
+  SAFE_WORD_CHALLENGE,
+  SAFE_WORD_RETRY,
+  SAFE_WORD_REDACTED,
+  VERIFIED_REPLY,
+  BLOCKED_REPLY,
+  TIME_WASTER_REPLY,
+  MAX_SAFE_WORD_ATTEMPTS,
+  inChallengePhase,
+  isChallengeLine,
+} from "@/lib/safe-word-phase";
+import type { CallRow, HouseholdRow } from "@/lib/db";
 
 // ---------------------------------------------------------------------------
 // Public contract �?matches conversation-engine.ts TurnInput / TurnOutput
@@ -57,8 +71,6 @@ const FALLBACK_REPLIES: Record<string, string> = {
   medium: "I need a moment. Could you tell me your name and reason for calling?",
   high:   "I'm not able to connect this call. Goodbye.",
 };
-
-const SAFE_WORD_CHALLENGE = "What's the family word?";
 
 const SAFE_WORD_FAIL_POINTS = 50;
 
@@ -143,6 +155,103 @@ function newFlags(current: string[], prior: string[]): string[] {
 }
 
 // ---------------------------------------------------------------------------
+// Safe word attempt turn
+// ---------------------------------------------------------------------------
+
+/**
+ * The caller answered the family word challenge. The attempt is compared with
+ * the stored hash and nowhere else: it is not sent to the AI provider or the
+ * rules layer, and only "[redacted]" is stored. Replies are fixed lines that
+ * never hint at how close the attempt was.
+ */
+async function handleSafeWordAttempt(args: {
+  call: CallRow;
+  household: HouseholdRow;
+  events: CallEventRow[];
+  speechResult: string;
+  currentState: CallState;
+  currentRiskScore: number;
+}): Promise<EngineOutput> {
+  const { call, household, events, speechResult, currentState, currentRiskScore } = args;
+
+  const matched = await checkSafeWord(speechResult, household.safe_word_hash);
+  await appendEvent({
+    call_id: call.id,
+    type: "safe_word_attempt",
+    payload: { type: "safe_word_attempt", matched, attempt: SAFE_WORD_REDACTED },
+  });
+
+  const priorFailed = events.filter(
+    (e) => e.type === "safe_word_attempt" && e.payload["matched"] === false,
+  ).length;
+  const failedAttempts = priorFailed + (matched ? 0 : 1);
+
+  // Rules score comes from stored (redacted) caller turns only.
+  const storedCaller = events
+    .filter((e) => e.type === "transcript" && e.payload["speaker"] === "caller")
+    .map((e) => (typeof e.payload["text"] === "string" ? e.payload["text"] : ""));
+  const rulesResult = scoreRules(storedCaller);
+
+  const priorFlagIds = events
+    .filter((e) => e.type === "red_flag")
+    .map((e) => (typeof e.payload["flag"] === "string" ? e.payload["flag"] : ""));
+  const combined = combineScores({
+    rulesScore: rulesResult.score + SAFE_WORD_FAIL_POINTS * failedAttempts,
+    aiScore: 0,
+    allFlags: [...rulesResult.flags, ...(failedAttempts > 0 ? ["safe_word_fail"] : [])],
+    safeWordCorrect: matched,
+    callbackDenied: events.some(
+      (e) => e.type === "callback_result" && e.payload["outcome"] === "denied",
+    ),
+    priorScore: currentRiskScore,
+  });
+
+  for (const flagId of newFlags(combined.flags, priorFlagIds)) {
+    await appendEvent({
+      call_id: call.id,
+      type: "red_flag",
+      payload: { type: "red_flag", flag: flagId, detail: "rules-only" },
+    });
+  }
+  await updateCall(call.call_sid, { risk_score: combined.score, risk_level: combined.level });
+
+  const callerTurns = events.filter(
+    (e) =>
+      e.type === "transcript" &&
+      e.payload["speaker"] === "caller" &&
+      typeof e.payload["text"] === "string" &&
+      e.payload["text"].trim() !== "",
+  ).length;
+  const nextState = computeNextState(
+    currentState,
+    combined.level,
+    true,
+    household.time_waster_enabled,
+    callerTurns,
+    matched,
+  );
+
+  const reply =
+    nextState === "verified" || nextState === "transferring"
+      ? VERIFIED_REPLY
+      : nextState === "time_wasted"
+        ? TIME_WASTER_REPLY
+        : nextState === "scam_blocked"
+          ? BLOCKED_REPLY
+          : failedAttempts < MAX_SAFE_WORD_ATTEMPTS
+            ? SAFE_WORD_RETRY
+            : SAFE_WORD_CHALLENGE;
+
+  await appendEvent({
+    call_id: call.id,
+    type: "transcript",
+    payload: { type: "transcript", text: reply, speaker: "system" },
+  });
+
+  return { reply, nextState, riskUpdate: { score: combined.score, level: combined.level } };
+}
+
+// ---------------------------------------------------------------------------
 // Main engine function
 // ---------------------------------------------------------------------------
 
@@ -158,6 +267,11 @@ export async function engine(input: EngineInput): Promise<EngineOutput> {
 
   // 2. Load event history.
   const events = await getCallEvents(call.id);
+
+  // 2b. Safe word attempt turn: handled apart from the AI and rules layers.
+  if (inChallengePhase(events)) {
+    return handleSafeWordAttempt({ call, household, events, speechResult, currentState, currentRiskScore });
+  }
 
   // 3. Extract prior flags (from existing red_flag events).
   const priorFlagIds: string[] = events
@@ -280,7 +394,8 @@ export async function engine(input: EngineInput): Promise<EngineOutput> {
     .find((e) => e.type === "transcript" && e.payload["speaker"] === "system");
   const claimsFamily =
     (geminiResult?.claims_family ?? false) ||
-    lastSystem?.payload["text"] === SAFE_WORD_CHALLENGE;
+    (usedFallback && claimsFamilyByPattern(speechResult)) ||
+    isChallengeLine(lastSystem?.payload["text"]);
   const nextState = computeNextState(
     currentState,
     combined.level,

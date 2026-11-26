@@ -31,21 +31,21 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
   - _Proof: read that section of design.md._
   - _MVP, done: Already written in design.md._
 
-- [ ] **4b. Prove it against the real seed.** Add a test that bcryptjs
+- [-] **4b. Prove it against the real seed.** Add a test that bcryptjs
   verifies the same hash under the `$2a$`, `$2b$` and `$2y$` prefixes. Run the
   seed on Supabase and confirm `left(safe_word_hash, 4)` and a successful
   "pumpkin" on the dev phone.
   - _Proof: test in `tests/safe-word.test.ts`; manual check noted in the PR._
   - _MVP, build item 5: The demo word must verify against the pgcrypto hash in the real seed._
 
-- [ ] **6. `lib/safe-word.ts`.** `normalise`, `stripLeadIn`, `checkSafeWord`
+- [x] **6. `lib/safe-word.ts`.** `normalise`, `stripLeadIn`, `checkSafeWord`
   with `bcryptjs`. Max 2 compares per attempt, invalid hash returns false and
   logs without the hash.
   - _Proof: `tests/safe-word.test.ts` with a real cost-4 hash: "PUMPKIN ",
     "Pumpkin!", "pumpkins", "it's pumpkin" match; "pumpkin pie", "pump" do not._
   - _MVP, build item 5: The safe word is the product's defence._
 
-- [ ] **7. Engine: challenge and attempts.** Ask "What's the family word?" on a
+- [x] **7. Engine: challenge and attempts.** Ask "What's the family word?" on a
   family claim, detect the challenge phase from the last system transcript,
   redact the attempt (event `attempt: "[redacted]"`, transcript "[safe word
   attempt]", nothing sent to Gemini or the rules layer), apply -40 / +50, move
@@ -58,14 +58,14 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
   - _MVP, build item 5: Ask the challenge, check the word, redact the attempt._
   - _Re-plan: Safe-word score effects (-40 / +50) come from conversation-and-scoring tasks 14 (this item) and 2 and safe-word task 5 (build item 6), so the verified-state proof completes after item 6._
 
-- [ ] **8. Redact before the transcript write.** Adjust
+- [x] **8. Redact before the transcript write.** Adjust
   `app/api/voice/turn/route.ts` (or move the write into the engine) so the
   safe-word turn is never stored as plaintext.
   - _Proof: `tests/voice-turn.test.ts`: during the challenge, `appendEvent` is
     never called with the spoken word._
   - _MVP, build item 5: The spoken word must never be stored in plain text._
 
-- [ ] **9. Deterministic family-claim fallback.** When the AI is unavailable,
+- [x] **9. Deterministic family-claim fallback.** When the AI is unavailable,
   detect "grandson", "granddaughter", "it's me", "your son/daughter" and
   similar by pattern so the challenge still happens.
   - _Proof: `tests/conversation.test.ts`: Gemini mock throws, caller says

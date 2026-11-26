@@ -14,12 +14,15 @@ const mem = vi.hoisted(() => ({
   seq: 0,
 }));
 
-vi.mock("@/lib/db", () => {
+vi.mock("@/lib/db", async () => {
+  // Real bcrypt hash (cost 4) of the safe word spoken by real-grandchild replays.
+  const bcrypt = (await import("bcryptjs")).default;
+  const safeWordHash = bcrypt.hashSync("teapot", 4);
   const household = {
     id: "11111111-1111-4111-8111-111111111111",
     family_name: "Sun",
     senior_phone: "+15550000000",
-    safe_word_hash: "x",
+    safe_word_hash: safeWordHash,
     time_waster_enabled: false,
     is_demo: true,
     created_at: "2026-01-01T00:00:00.000Z",
@@ -71,6 +74,7 @@ interface Fixture {
   category: string;
   caller: string[];
   expectedLevel: "low" | "medium" | "high";
+  safeWordCorrect?: boolean;
   knownGap?: boolean;
   reason?: string;
 }
@@ -99,7 +103,10 @@ async function replay(f: Fixture) {
     state: "screening",
   } as never);
   const states: string[] = [];
-  for (const line of f.caller) {
+  // A real grandchild answers the challenge right after the family claim, so
+  // the safe word follows the first line (a family claim never connects without it).
+  const lines = f.safeWordCorrect ? [f.caller[0]!, "teapot", ...f.caller.slice(1)] : f.caller;
+  for (const line of lines) {
     const r = await processTurn({ callSid, speech: line, source: "simulator" });
     if (r.kind !== "turn") throw new Error("call not found");
     states.push(r.nextState);
@@ -137,6 +144,17 @@ describe("legitimate fixtures replayed through engine()", () => {
       expect(["scam_blocked", "time_wasted"]).not.toContain(r.state);
     });
   }
+
+  it("real grandchild fixtures end verified and LOW, and never store the safe word", async () => {
+    for (const f of (legitimate as Fixture[]).filter((x) => x.safeWordCorrect)) {
+      mem.calls = [];
+      mem.events = [];
+      const r = await replay(f);
+      expect(r.state, f.id).toBe("verified");
+      expect(r.level, f.id).toBe("low");
+      expect(JSON.stringify(mem.events)).not.toContain("teapot");
+    }
+  });
 
   it("the doctor's-office fixture ends in completed (message) with no alert", async () => {
     const f = (legitimate as Fixture[]).find((x) => x.id === "legit-doctor-1")!;

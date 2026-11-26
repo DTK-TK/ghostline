@@ -73,7 +73,7 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
   - _MVP, build item 4: Access control, now one passcode._
   - _Re-plan: Decision: migration 0004 enables RLS on every table with NO policies. proxy.ts checks DASHBOARD_PASSCODE and stores a derived value in an httpOnly cookie; it covers all dashboard pages, /calls/*, /reports/*, settings routes and the live polling route. Twilio webhooks (/api/voice/*, /api/sms/*) stay outside it and keep the X-Twilio-Signature check. Deferred: Supabase Auth, anonymous sessions, signed SMS tokens, family_members.user_id, calls_read/events_read policies. Proof changes to: the anon key reads no rows from any table; a request without the cookie is redirected to the passcode page; a wrong passcode is refused._
 
-- [x] **14. Migration columns.** `calls.is_simulated`, `households.is_demo`;
+- [ ] **14. Migration columns.** `calls.is_simulated`, `households.is_demo`;
   seed marks the demo household `is_demo = true`; schema types updated.
   - _Proof: `supabase db reset` runs clean; `CallSchema` parses a row with the
     new column._

@@ -30,6 +30,7 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
   - `TurnInput` / `TurnOutput` types
   - `runTurn()` stub — returns safe defaults, documented contract for spec 3
   - _MVP, done: Built, but the stub is replaced in build item 1._
+  - _Note: `lib/conversation-engine.ts` was intentionally replaced by `lib/conversation.ts` (`engine()`), so the file no longer exists._
 
 - [x] **4.** Write `app/api/voice/incoming/route.ts`
   - Validate Twilio signature; 403 on failure

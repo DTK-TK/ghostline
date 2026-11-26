@@ -7,12 +7,15 @@ const mem = vi.hoisted(() => ({
   seq: 0,
 }));
 
-vi.mock("@/lib/db", () => {
+vi.mock("@/lib/db", async () => {
+  // Real bcrypt hash (cost 4) of the SIMULATOR_SAFE_WORD value used below.
+  const bcrypt = (await import("bcryptjs")).default;
+  const safeWordHash = bcrypt.hashSync("teapot", 4);
   const household = {
     id: "11111111-1111-4111-8111-111111111111",
     family_name: "Sun",
     senior_phone: "+15550000000",
-    safe_word_hash: "x",
+    safe_word_hash: safeWordHash,
     time_waster_enabled: false,
     is_demo: true,
     created_at: "2026-01-01T00:00:00.000Z",
@@ -102,6 +105,17 @@ describe("simulator scenarios reach their expected level with the mock AI", () =
   });
 });
 
+describe("grandchild scenario with the safe word", () => {
+  it("reaches verified and never stores the scripted word", async () => {
+    vi.stubEnv("SIMULATOR_SAFE_WORD", "teapot");
+    const { call } = await runAll("grandchild");
+    expect(call.state).toBe("verified");
+    expect(JSON.stringify(mem.events)).not.toContain("teapot");
+    const attempts = mem.events.filter((e) => e.type === "safe_word_attempt");
+    expect(attempts.at(-1)!.payload).toMatchObject({ matched: true, attempt: "[redacted]" });
+  });
+});
+
 describe("startSimulation", () => {
   it("creates a simulated call with a SIM sid and the fake number", async () => {
     const start = await startSimulation({ householdId: HOUSEHOLD_ID, scenarioId: "cra" });
@@ -152,7 +166,7 @@ describe("nextStep order and ownership", () => {
 });
 
 describe("scripted safe word", () => {
-  const line = SCENARIOS.grandchild!.lines.at(-1)!;
+  const line = SCENARIOS.grandchild!.lines.find((l) => l.kind === "safe_word")!;
 
   it("uses SIMULATOR_SAFE_WORD only when the scenario says correct", () => {
     vi.stubEnv("SIMULATOR_SAFE_WORD", "teapot");

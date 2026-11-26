@@ -23,12 +23,15 @@ const FAMILY = [
   { id: "m2", name: "Sam", phone: "+15550100002", gets_alerts: true, is_callback_target: false },
 ];
 
-vi.mock("@/lib/db", () => {
+vi.mock("@/lib/db", async () => {
+  // Real bcrypt hash (cost 4) of the SIMULATOR_SAFE_WORD value stubbed below.
+  const bcrypt = (await import("bcryptjs")).default;
+  const safeWordHash = bcrypt.hashSync("teapot", 4);
   const household = {
     id: "11111111-1111-4111-8111-111111111111",
     family_name: "Sun",
     senior_phone: "+15550000000",
-    safe_word_hash: "x",
+    safe_word_hash: safeWordHash,
     time_waster_enabled: false,
     is_demo: true,
     created_at: "2026-01-01T00:00:00.000Z",
@@ -132,6 +135,15 @@ describe("doctor, the legitimate scenario (task 24, second half)", () => {
   });
 });
 
+describe("grandchild with the safe word", () => {
+  it("is verified and no stored event contains the scripted word", async () => {
+    const call = await run("grandchild");
+    expect(call.state).toBe("verified");
+    expect(JSON.stringify(mem.events)).not.toContain("teapot");
+    expect(mem.events.some((e) => e.type === "safe_word_attempt" && e.payload.matched === true)).toBe(true);
+  });
+});
+
 describe("grandparent (task 24, first half)", () => {
   it("runs to the end, is flagged simulated, and has caller lines stored in order", async () => {
     const call = await run("grandparent");
@@ -163,7 +175,9 @@ describe("grandparent (task 24, first half)", () => {
   it(
     "sends the checklist SMS to each family member",
     async () => {
-      await run("grandparent");
+      // "cra" has no family claim. In "grandparent" the gift-card line is the
+      // challenge answer, which is redacted and never read for payment details.
+      await run("cra");
       const checklist = mem.sms.filter((s) => s.body.startsWith("Reminder for"));
       expect(checklist).toHaveLength(FAMILY.length);
     },

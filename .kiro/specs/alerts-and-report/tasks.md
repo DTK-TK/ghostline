@@ -52,7 +52,7 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
     with `alert_type: "other"`; `npx tsc --noEmit` passes._
   - _MVP, build item 8: The alert event schema needs alert_type._
 
-- [ ] **6. Persist amount and payment method.** Migration `0003`: add
+- [x] **6. Persist amount and payment method.** Migration `0003`: add
   `calls.requested_amount` and `calls.payment_method`. Add them to `CallSchema`
   and `CallInsertSchema`. The engine writes the latest non-empty AI value, with
   a rules-based extraction when the AI is down, and never overwrites with an

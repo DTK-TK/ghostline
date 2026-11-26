@@ -60,15 +60,23 @@ function fromFixture(
   };
 }
 
+function withSafeWordAfterFirstLine(s: Scenario): Scenario {
+  const [first, ...rest] = s.lines;
+  return { ...s, lines: [first!, { kind: "safe_word", safeWord: "correct" }, ...rest] };
+}
+
 /** Scenario ids are lowercase letters only, so they survive inside a call sid. */
 export const SCENARIOS: Record<string, Scenario> = {
   grandparent: fromFixture("grandparent", "Grandparent scam", "scam-grandparent-1"),
   cra: fromFixture("cra", "CRA tax scam", "scam-cra-1"),
   bank: fromFixture("bank", "Bank and tech support scam", "scam-bank-1"),
   doctor: fromFixture("doctor", "Legitimate doctor's office", "legit-doctor-1"),
-  grandchild: fromFixture("grandchild", "Real grandchild with the safe word", "legit-grandchild-1", [
-    { kind: "safe_word", safeWord: "correct" },
-  ]),
+  // The safe word follows the family claim, as a real grandchild would answer
+  // the challenge. Appending it after the fixture lines would make the second
+  // fixture line the (wrong) first attempt.
+  grandchild: withSafeWordAfterFirstLine(
+    fromFixture("grandchild", "Real grandchild with the safe word", "legit-grandchild-1"),
+  ),
 };
 
 export function getScenario(id: string): Scenario | null {

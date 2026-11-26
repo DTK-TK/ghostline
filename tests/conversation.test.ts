@@ -534,7 +534,7 @@ describe("engine: transitions, dedup, fallback, floor, updateCall", () => {
       expect(out.nextState).toBe("scam_blocked");
     });
 
-    it("the claim sticks after the challenge was asked", async () => {
+    it("the turn after the challenge is a safe word attempt: a miss re-asks neutrally and stays in screening", async () => {
       const { engine } = await setup({
         ai: aiTurn({ risk_score: 0, claims_family: false }),
         events: [
@@ -544,7 +544,7 @@ describe("engine: transitions, dedup, fallback, floor, updateCall", () => {
       });
       const out = await run(engine);
       expect(out.nextState).toBe("screening");
-      expect(out.reply).toBe("What's the family word?");
+      expect(out.reply).toBe("Sorry, I didn't catch that. What's the family word?");
     });
 
     it("LOW, no claim, 3 caller turns -> completed with no alert", async () => {
@@ -633,6 +633,31 @@ describe("engine: transitions, dedup, fallback, floor, updateCall", () => {
         .map((e) => e.payload.detail);
       expect(details.length).toBeGreaterThan(0);
       expect(details.every((d) => d === "rules-only")).toBe(true);
+    });
+
+    it("Gemini down + \"Grandma it's me, I need help\" -> the safe word challenge", async () => {
+      const ai = await import("@/lib/scoring/ai");
+      const { engine } = await setup({ ai: new ai.GeminiUnavailableError("down"), events: [] });
+      const out = await engine({
+        callSid: "CA_test",
+        speechResult: "Grandma it's me, I need help",
+        currentState: "screening",
+        currentRiskScore: 0,
+      });
+      expect(out.reply).toBe("What's the family word?");
+      expect(out.nextState).toBe("screening");
+    });
+
+    it("Gemini down + a pharmacy line about \"your grandson's prescription\" is not challenged", async () => {
+      const ai = await import("@/lib/scoring/ai");
+      const { engine } = await setup({ ai: new ai.GeminiUnavailableError("down"), events: [] });
+      const out = await engine({
+        callSid: "CA_test",
+        speechResult: "I'm calling about your grandson's prescription",
+        currentState: "screening",
+        currentRiskScore: 0,
+      });
+      expect(out.reply).not.toBe("What's the family word?");
     });
 
     it("uses the HIGH scripted line when the prior score is already HIGH", async () => {
