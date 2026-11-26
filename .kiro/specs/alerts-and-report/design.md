@@ -1,5 +1,17 @@
 # Design: alerts-and-report
 
+## Re-plan decisions (hackathon MVP, due Dec 4, 2026)
+
+Supersedes "At-most-once sending" (claim statuses and retry), and the report link protection in "Report page".
+
+- **Alert timing.** HIGH sends immediately. MEDIUM sends when a message is taken or when the call ends. There is never a second alert per call: each (call, alert_type, recipient) pair is sent once, so a MEDIUM alert followed by a HIGH on the same call sends nothing more.
+- **At-most-once.** Keep only the unique index on `call_events` for `alert_sent` (call, alert_type, recipient_id). Insert the row first and send only if the insert succeeds. Add a per-recipient try/catch. A failed send is not retried in the MVP. The claim statuses (`sending`/`sent`/`failed`), compare-and-set retry and `Promise.allSettled` are deferred (task 8b).
+- **SMS.** The HIGH alert SMS has per-field caps (40, 20, 20), at most 320 characters in total, and the dashboard link is never cut. The money-move checklist SMS follows it when a payment method is stored.
+- **Stored evidence.** `calls.requested_amount`, `calls.payment_method` and red-flag quotes are stored, and the report reads them.
+- **Report.** A fraud report is created at the end of a HIGH call, once per call (unique index on `fraud_reports(call_id)`). It is generated for the family to file and never submitted automatically. `/reports/[id]` works and uses the theme tokens.
+- **Access.** `/reports/*` and `/calls/*` sit behind the dashboard passcode (see dashboard-and-simulator). Signed SMS tokens are deferred.
+- **Deferred:** claim statuses and retry, the scam-type module refactor (task 11), report time-zone polish (task 14).
+
 ## Module layout (target)
 
 ```

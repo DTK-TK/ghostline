@@ -1,5 +1,18 @@
 # Design: dashboard-and-simulator
 
+## Re-plan decisions (hackathon MVP, due Dec 4, 2026)
+
+Supersedes the sections "Access control and RLS", "Live page" (the Realtime parts), "Calls and details" (live prepend), "Settings" and "Unread dot". Everything below those headings stays as the post-hackathon design.
+
+- **Access control.** RLS is enabled on every table (households, contacts, family_members, calls, call_events, fraud_reports, mock_messages) with NO policies. The browser reads nothing directly; every read goes through a server component or route that uses the service role key.
+- **One passcode.** The env var `DASHBOARD_PASSCODE` protects all dashboard pages, `/calls/*`, `/reports/*`, the settings routes and the live polling route. `proxy.ts` checks it and stores the result in an httpOnly cookie (the cookie holds a value derived from the passcode, never the passcode itself; compare in constant time). Read the Next.js proxy doc in `node_modules/next/dist/docs/` first, as AGENTS.md requires.
+- **Outside the passcode:** `/api/voice/*` and `/api/sms/*`, which keep the `X-Twilio-Signature` check. This is an assumption; say so if you want them handled differently.
+- **Deferred:** Supabase Auth, anonymous sessions, signed SMS tokens, `family_members.user_id`, the `calls_read` and `events_read` policies. The SMS carries the plain `/calls/{id}` link; the passcode page returns the visitor to it.
+- **Live updates.** `/live` and `/calls/[id]` poll a server route every 2 seconds (task 25). Supabase Realtime (`lib/supabase-browser.ts`, `lib/realtime.ts`, `useLiveCall`) is deferred. `/calls` loads on page view with no live prepend.
+- **Simulator.** Scenarios come from `tests/fixtures` (the 30 fixtures); import the JSON, do not copy it. The Simulate button needs the `is_demo` household, the `ENABLE_SIMULATOR` gate and the rate limit, and everything it creates is labelled SIMULATED.
+- **Dev phone.** `/dev/phone` is exempt from the 16 px text rule. It stays behind `ENABLE_DEV_TOOLS`.
+- **Deferred:** Settings page CRUD (the demo household is seeded with SQL; the time-waster toggle moves with it), unread dot, Realtime, dev phone tests, full accessibility audit.
+
 ## What exists today (read from the files)
 
 - `app/` has only the starter `page.tsx`, a root `layout.tsx` titled "Create

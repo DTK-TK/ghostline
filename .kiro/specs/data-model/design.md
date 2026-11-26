@@ -1,5 +1,13 @@
 # Design – data-model
 
+## Re-plan decisions (hackathon MVP, due Dec 4, 2026)
+
+- RLS is enabled on every table with NO policies. The browser reads nothing directly. The server uses the service role key. Migration 0004 (dashboard-and-simulator task 2) does this.
+- Supabase Auth, anonymous sessions and per-user policies are deferred.
+- The `supabase_realtime` publication and `REPLICA IDENTITY FULL` from 0001 stay in place but unused. Realtime is deferred, and with RLS on and no policies a browser subscriber would receive nothing anyway.
+- The "Realtime" section below describes the deferred design.
+- `lib/database.types.ts` generation is deferred.
+
 ## Architecture
 
 All persistent state lives in a single Supabase Postgres database. There is

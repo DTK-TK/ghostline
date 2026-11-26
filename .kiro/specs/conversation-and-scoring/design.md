@@ -1,5 +1,13 @@
 # Design: conversation-and-scoring
 
+## Re-plan decisions (hackathon MVP, due Dec 4, 2026)
+
+- **Silence.** One empty caller turn gets a reply and the call keeps gathering. The call hangs up after two consecutive empty turns, counted from `call_events`.
+- **MEDIUM alerts.** The MEDIUM alert is sent when a message is taken or when the call ends, never twice (see alerts-and-report). The open decision on MEDIUM stays at its default: screen for up to 3 caller turns, then take a message.
+- **Shared path.** `engine()` is called from one place, `processTurn()`, used by the voice route, the dev phone and the simulator (dashboard-and-simulator task 3).
+- **Scoring inputs.** `safeWordCorrect` and `callbackDenied` come from stored events (task 2). `callbackConfirmed` comes with safe-word-and-callback task 5.
+- **Deferred:** latest-utterance de-duplication (task 7) and widening the rules (task 13). Rule gaps are recorded as `knownGap` in the fixtures.
+
 ## Module layout (target)
 
 ```

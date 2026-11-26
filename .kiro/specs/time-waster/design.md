@@ -1,5 +1,13 @@
 # Design: time-waster
 
+## Re-plan decisions (hackathon MVP, due Dec 4, 2026)
+
+- A time-waster call ends with state `completed` and outcome `time_wasted`, for all three exit paths (limit, caller hang-up, silence).
+- `TIME_WASTER_SECONDS` is clamped to 180. A missing, non-numeric or non-positive value gives 180.
+- The persona runs only at HIGH and only when `households.time_waster_enabled` is true. With it off, HIGH is a plain block.
+- The Settings toggle (task 15) is deferred. For the demo, set the column with SQL.
+- `enterHighRisk()` is shared with the callback routes. Until it lands, those routes set the blocked state, and task 12 retrofits them.
+
 ## Overview
 
 The time-waster is a mode of the conversation engine, not a separate call

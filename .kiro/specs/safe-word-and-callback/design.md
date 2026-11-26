@@ -1,5 +1,13 @@
 # Design: safe-word-and-callback
 
+## Re-plan decisions (hackathon MVP, due Dec 4, 2026)
+
+- The safe word is seeded with SQL (pgcrypto hash) for the demo. The Settings page and `hashSafeWord` for Settings (task 14) are deferred.
+- In scope: safe word challenge and check, callback start, `/api/voice/callback`, `/api/voice/hold-check`, `/api/voice/callback-result`, scoring with both results, alert on denial, dev phone buttons (1 = denied, 2 = confirmed).
+- A denied callback enters HIGH through `enterHighRisk()` (time-waster task 12), so it ends as `time_wasted` or `scam_blocked` like any other HIGH call.
+- The alert on denial follows the shared rule: sent immediately, never twice.
+- Phone numbers are masked in every log.
+
 ## Module layout (target)
 
 ```

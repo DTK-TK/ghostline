@@ -1,5 +1,12 @@
 # Design — call-handling
 
+## Re-plan decisions (hackathon MVP, due Dec 4, 2026)
+
+- The live `/api/voice/turn` route calls the real engine through `processTurn()`. The stub in `lib/conversation-engine.ts` is removed (conversation-and-scoring task 1).
+- The "Silent-turn handling" rule is: one silent turn replies and keeps gathering; two consecutive silent turns hang up. The count comes from `call_events`, not from the request.
+- The status route ends calls through `finalizeCall()`.
+- **Deferred:** twiml and twilio-validate unit tests (tasks 8, 9) and extra incoming tests (task 10).
+
 ## State machine
 
 ```
