@@ -66,6 +66,25 @@ describe("proxy", () => {
     expect(loc.searchParams.get("next")).toBe("/calls/123?a=b");
   });
 
+  it.each(["/reports/9b2f6c1e-0000-4000-8000-000000000001", "/calls/9b2f6c1e-0000-4000-8000-000000000001"])(
+    "redirects %s without the cookie to /unlock?next=<path>, and safeNextPath accepts it",
+    (path) => {
+      process.env.DASHBOARD_PASSCODE = "secret";
+      const res = proxy(req(path));
+      const loc = new URL(res.headers.get("location")!);
+      expect(res.status).toBe(307);
+      expect(loc.pathname).toBe("/unlock");
+      expect(loc.searchParams.get("next")).toBe(path);
+      expect(safeNextPath(loc.searchParams.get("next"))).toBe(path);
+    },
+  );
+
+  it("lets /reports/<id> through with a valid cookie", () => {
+    process.env.DASHBOARD_PASSCODE = "secret";
+    const res = proxy(req("/reports/abc", deriveToken("secret")));
+    expect(res.headers.get("x-middleware-next")).toBe("1");
+  });
+
   it("lets a request with a valid cookie through", () => {
     process.env.DASHBOARD_PASSCODE = "secret";
     const res = proxy(req("/live", deriveToken("secret")));
@@ -119,6 +138,13 @@ describe("POST /api/unlock", () => {
     expect(set).toContain(`${DASHBOARD_COOKIE}=${deriveToken("secret")}`);
     expect(set.toLowerCase()).toContain("httponly");
     expect(set).not.toContain("=secret;");
+  });
+
+  it("returns to the same /reports/<id> path after unlocking", async () => {
+    process.env.DASHBOARD_PASSCODE = "secret";
+    const path = "/reports/9b2f6c1e-0000-4000-8000-000000000001";
+    const res = await post({ passcode: "secret", next: path });
+    expect(new URL(res.headers.get("location")!).pathname).toBe(path);
   });
 
   it("ignores an off-site return path", async () => {

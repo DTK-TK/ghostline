@@ -6,6 +6,20 @@
 - **MEDIUM alerts.** The MEDIUM alert is sent when a message is taken or when the call ends, never twice (see alerts-and-report). The open decision on MEDIUM stays at its default: screen for up to 3 caller turns, then take a message.
 - **Shared path.** `engine()` is called from one place, `processTurn()`, used by the voice route, the dev phone and the simulator (dashboard-and-simulator task 3).
 - **Scoring inputs.** `safeWordCorrect` and `callbackDenied` come from stored events (task 2). `callbackConfirmed` comes with safe-word-and-callback task 5.
+- **State machine bug fix (task 1b).** `computeNextState` moved a LOW,
+  no-claim caller to `verified` on the first turn, so scam calls never got to
+  HIGH. New rules (requirements R7): never connect on the first turn; a family
+  claim connects only after a matched safe word; no claim means screen for up
+  to 3 caller turns, then MESSAGE; HIGH at any turn goes to the HIGH path.
+  State mapping: CONNECT = `verified`; MESSAGE = `completed` with the
+  existing message TwiML (task 15); HIGH path = `time_wasted` or
+  `scam_blocked`; SAFE_WORD = stay in `screening` and reply with the
+  challenge ("What's the family word?"). No new DB state: `CallStateSchema`
+  has 8 values and `calls.state` is plain `text` with no CHECK constraint
+  (migration 0001), so a new value would work, but is not needed. The
+  challenge phase is read from the last system transcript, as in
+  safe-word-and-callback task 7. The 3-turn limit is also the MEDIUM default,
+  so the earlier open decision on MEDIUM is settled at 3.
 - **Deferred:** latest-utterance de-duplication (task 7) and widening the rules (task 13). Rule gaps are recorded as `knownGap` in the fixtures.
 
 ## Module layout (target)
@@ -92,15 +106,41 @@ so that persona is unreachable until that spec lands.
 
 ## State machine
 
-HIGH with time-waster on goes to `time_wasted`, otherwise `scam_blocked`.
-MEDIUM takes a message and alerts the family (alerts are in the
-alerts-and-report spec). LOW with a family claim stays in screening until the
-safe-word spec adds the challenge. LOW without a claim goes to `verified`.
-Terminal states never move.
+Decision order in `computeNextState` (terminal states never move):
 
-Open decision: MEDIUM can end the screening on the first turn that reaches
-it, or screen for up to 3 caller turns first. Default if unanswered: up to
-3 caller turns, then take a message.
+```
+1. HIGH, any turn            -> time_wasted (time-waster on) | scam_blocked
+2. claims_family             -> matched safe word (and no denied callback)
+                                  ? verified            (CONNECT)
+                                  : screening + challenge reply (SAFE_WORD)
+3. no claim, caller turns < 3 -> screening
+4. no claim, caller turns >= 3 -> completed + message TwiML (MESSAGE)
+                                  MEDIUM: one MEDIUM alert; LOW: no alert
+```
+
+`verified` is reachable only through step 2 with a matched safe word, so it
+can never happen on the first turn. A denied callback reaches HIGH through
+the score (R5), so step 1 handles it. `confirmed` and `no_answer` change
+nothing: the safe-word decision stands.
+
+Mapping: CONNECT = `verified`, MESSAGE = `completed` plus message TwiML,
+HIGH path = `time_wasted` or `scam_blocked`, SAFE_WORD = `screening` with
+the challenge reply. The challenge is detected from the last system
+transcript (safe-word-and-callback task 7). Until that task lands, a family
+claim keeps the call in `screening` and the engine replies with the
+challenge line "What's the family word?" (9 words, one sentence, R2 compliant
+and added to the scripted fallbacks). The family claim itself comes from
+the AI's `claims_family`, with the deterministic pattern fallback in
+safe-word-and-callback task 9 when the AI is down.
+
+Because the score is recomputed every turn from all stored caller turns plus
+the current one, a scam that only shows its signals on turn 2 or 3 reaches
+HIGH while the call is still in `screening`.
+
+Open decision: none on state values. If SAFE_WORD turns out to need its own
+state (for example if the last-system-transcript check proves too fragile),
+adding `safe_word` to `CallStateSchema` is the unavoidable alternative. No
+migration would be needed, as `calls.state` has no CHECK constraint.
 
 ## Known defects in the current code (all verified by reading the files)
 

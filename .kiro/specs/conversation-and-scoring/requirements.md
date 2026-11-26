@@ -129,18 +129,59 @@ On `AIUnavailableError`, the engine:
 
 ## R7. State transitions
 
+Terms: CONNECT = state `verified`. MESSAGE = state `completed` with the
+message TwiML. HIGH path = `time_wasted` (time-waster on) or `scam_blocked`
+(time-waster off). SAFE_WORD = state `screening` with the safe-word challenge
+reply (see design.md). A caller turn is a non-empty caller transcript event.
+
 | Level | Condition | Next state |
 |---|---|---|
-| HIGH | time-waster on | `time_wasted` |
-| HIGH | time-waster off | `scam_blocked` |
-| MEDIUM | any | take a message and alert the family |
-| LOW | caller claims family | stay in screening (safe-word challenge) |
-| LOW | no family claim | `verified` (connect) |
+| HIGH | any turn, time-waster on | `time_wasted` |
+| HIGH | any turn, time-waster off | `scam_blocked` |
+| any non-HIGH | caller claims family, safe word not yet passed | SAFE_WORD (`screening`) |
+| any non-HIGH | caller claims family, safe word passed | CONNECT (`verified`) |
+| MEDIUM | no family claim, fewer than 3 caller turns | `screening` |
+| MEDIUM | no family claim, 3 or more caller turns | MESSAGE and a MEDIUM alert |
+| LOW | no family claim, fewer than 3 caller turns | `screening` |
+| LOW | no family claim, 3 or more caller turns | MESSAGE, no alert |
+
+Acceptance criteria:
+
+1. WHEN an unknown caller's first turn is scored, THE Engine SHALL NOT
+   move the call to `verified`, whatever the score.
+2. WHEN the caller does not claim to be family and fewer than 3 caller
+   turns have been received, THE Engine SHALL keep the call in `screening`
+   and keep gathering, unless the level is HIGH.
+3. WHEN the caller does not claim to be family, the level is LOW and 3
+   caller turns have been received, THE Engine SHALL move the call to MESSAGE
+   without sending an alert and without connecting.
+4. WHEN the caller does not claim to be family, the level is MEDIUM and 3
+   caller turns have been received, THE Engine SHALL move the call to MESSAGE
+   and send one MEDIUM alert.
+5. WHEN the level is HIGH on any turn, THE Engine SHALL move the call to the
+   HIGH path immediately.
+6. WHEN the caller claims to be family (`claims_family = true`) and no
+   `safe_word_attempt` event has `matched: true`, THE Engine SHALL keep the call
+   in `screening` with the safe-word challenge reply and SHALL NOT move to
+   CONNECT.
+7. WHEN the caller claims to be family and a `safe_word_attempt` event has
+   `matched: true`, THE Engine SHALL move the call to CONNECT, except when a
+   `callback_result` event has `outcome: "denied"`.
+8. WHERE the callback check runs, THE Engine SHALL move the call to the HIGH
+   path on `denied`, and SHALL keep the safe-word decision on `confirmed` or
+   `no_answer`.
+9. WHILE the callback check and the safe-word challenge are not yet
+   implemented, THE Engine SHALL move a family claim to SAFE_WORD, keep
+   gathering, and SHALL NOT move it to CONNECT.
+10. WHEN a caller turn is received, THE Engine SHALL re-evaluate the score
+    from the whole transcript so far (all stored caller turns plus the
+    current one), and the next state SHALL follow from that score.
+11. THE safe-word challenge reply SHALL follow R2 (at most 2 sentences, under
+    25 words, no hint of the safe word).
 
 Terminal states (`scam_blocked`, `completed`, `verified`, `transferring`)
-never transition. The MEDIUM behaviour follows the band definition in
-`scam-rules.md`. How many turns MEDIUM keeps screening before taking a
-message is an open decision (see design.md).
+never transition. The MEDIUM and LOW screening length (3 caller turns)
+replaces the earlier open decision; see design.md.
 
 ---
 

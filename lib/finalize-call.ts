@@ -46,8 +46,8 @@ export async function finalizeCall(call: CallRow, end: FinalizeInput): Promise<v
       call,
       level,
       claimedIdentity: call.claimed_identity,
-      requestedAmount: null,
-      paymentMethod: null,
+      requestedAmount: call.requested_amount,
+      paymentMethod: call.payment_method,
       safeWordResult: !lastAttempt ? "not asked" : lastAttempt.payload["matched"] === true ? "passed" : "failed",
       callbackResult:
         callback === "denied" || callback === "confirmed" || callback === "no_answer"

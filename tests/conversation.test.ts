@@ -463,18 +463,107 @@ describe("engine: transitions, dedup, fallback, floor, updateCall", () => {
       expect(out.nextState).toBe("screening");
     });
 
-    it("LOW without a family claim -> verified", async () => {
+    // Changed in task 1b: this used to expect "verified" on the first LOW turn.
+    it("LOW without a family claim, first turn -> screening, never verified", async () => {
       const { engine } = await setup({ ai: aiTurn({ risk_score: 10, claims_family: false }) });
       const out = await run(engine);
       expect(out.riskUpdate.level).toBe("low");
-      expect(out.nextState).toBe("verified");
+      expect(out.nextState).toBe("screening");
     });
 
-    it("LOW with a family claim -> screening (safe-word challenge)", async () => {
+    it("LOW with a family claim -> screening with the challenge reply", async () => {
       const { engine } = await setup({ ai: aiTurn({ risk_score: 10, claims_family: true }) });
       const out = await run(engine);
       expect(out.riskUpdate.level).toBe("low");
       expect(out.nextState).toBe("screening");
+      expect(out.reply).toBe("What's the family word?");
+    });
+  });
+
+  describe("task 1b: connect only after a matched safe word (R7)", () => {
+    const callerTurns = (n: number) =>
+      Array.from({ length: n }, () => ({
+        type: "transcript",
+        payload: { type: "transcript", speaker: "caller", text: "Hello there" },
+      }));
+    const matched = { type: "safe_word_attempt", payload: { type: "safe_word_attempt", matched: true } };
+
+    it("\"Hi Grandma it's me\" as a first turn never connects", async () => {
+      const { engine } = await setup({
+        ai: aiTurn({ risk_score: 0, claims_family: true }),
+        events: callerTurns(1),
+      });
+      const out = await engine({
+        callSid: "CA_test",
+        speechResult: "Hi Grandma it's me",
+        currentState: "screening",
+        currentRiskScore: 0,
+      });
+      expect(out.nextState).toBe("screening");
+      expect(out.reply).toBe("What's the family word?");
+    });
+
+    it("a family claim with no safe word never connects, even after many turns", async () => {
+      const { engine } = await setup({
+        ai: aiTurn({ risk_score: 0, claims_family: true }),
+        events: callerTurns(6),
+      });
+      const out = await run(engine);
+      expect(out.nextState).toBe("screening");
+    });
+
+    it("a family claim connects after a matched safe word", async () => {
+      const { engine } = await setup({
+        ai: aiTurn({ risk_score: 0, claims_family: true }),
+        events: [...callerTurns(2), matched],
+      });
+      expect((await run(engine)).nextState).toBe("verified");
+    });
+
+    it("a denied callback beats a matched safe word (HIGH path)", async () => {
+      const { engine } = await setup({
+        ai: aiTurn({ risk_score: 0, claims_family: true }),
+        events: [
+          ...callerTurns(2),
+          matched,
+          { type: "callback_result", payload: { type: "callback_result", outcome: "denied" } },
+        ],
+      });
+      const out = await run(engine);
+      expect(out.riskUpdate.level).toBe("high");
+      expect(out.nextState).toBe("scam_blocked");
+    });
+
+    it("the claim sticks after the challenge was asked", async () => {
+      const { engine } = await setup({
+        ai: aiTurn({ risk_score: 0, claims_family: false }),
+        events: [
+          ...callerTurns(1),
+          { type: "transcript", payload: { type: "transcript", speaker: "system", text: "What's the family word?" } },
+        ],
+      });
+      const out = await run(engine);
+      expect(out.nextState).toBe("screening");
+      expect(out.reply).toBe("What's the family word?");
+    });
+
+    it("LOW, no claim, 3 caller turns -> completed with no alert", async () => {
+      const alerts = await import("@/lib/alerts");
+      vi.mocked(alerts.sendAlerts).mockClear();
+      const { engine } = await setup({ ai: aiTurn({ risk_score: 0 }), events: callerTurns(3) });
+      const out = await run(engine);
+      expect(out.nextState).toBe("completed");
+      expect(alerts.sendAlerts).not.toHaveBeenCalled();
+    });
+
+    it("LOW, no claim, 2 caller turns -> still screening", async () => {
+      const { engine } = await setup({ ai: aiTurn({ risk_score: 0 }), events: callerTurns(2) });
+      expect((await run(engine)).nextState).toBe("screening");
+    });
+
+    it("HIGH on the first turn goes straight to the HIGH path", async () => {
+      const { engine } = await setup({ ai: aiTurn({ risk_score: 90 }), events: callerTurns(1) });
+      expect((await run(engine)).nextState).toBe("scam_blocked");
     });
   });
 
@@ -609,5 +698,107 @@ describe("engine: transitions, dedup, fallback, floor, updateCall", () => {
         }),
       );
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// alerts-and-report task 6: persist amount and payment method
+// ---------------------------------------------------------------------------
+
+describe("engine: requested_amount and payment_method", () => {
+  const aiTurn = (over: Record<string, unknown> = {}) => ({
+    reply: "Thank you. Who are you calling for?",
+    risk_score: 0,
+    flags: [] as string[],
+    claims_family: false,
+    claimed_identity: null,
+    requested_amount: null,
+    payment_method: null,
+    summary: "",
+    ...over,
+  });
+
+  beforeEach(() => {
+    vi.resetModules();
+    delete process.env.GEMINI_API_KEY;
+    delete process.env.AI_PROVIDER;
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "log").mockImplementation(() => {});
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  async function turn(opts: {
+    ai: Record<string, unknown> | "down";
+    speech: string;
+    call?: Record<string, unknown>;
+  }) {
+    const db = await import("@/lib/db");
+    vi.mocked(db.getCallEvents).mockImplementation((async () => []) as any);
+    vi.mocked(db.getCallBySid).mockImplementation((async () => ({
+      id: "call-1",
+      household_id: "hh-1",
+      claimed_identity: null,
+      summary: null,
+      requested_amount: null,
+      payment_method: null,
+      ...opts.call,
+    })) as any);
+    vi.mocked(db.updateCall).mockClear();
+    const ai = await import("@/lib/scoring/ai");
+    if (opts.ai === "down") {
+      vi.spyOn(ai, "callGemini").mockRejectedValue(new ai.GeminiUnavailableError("down"));
+    } else {
+      vi.spyOn(ai, "callGemini").mockResolvedValue(opts.ai as any);
+    }
+    const { engine } = await import("@/lib/conversation");
+    await engine({
+      callSid: "CA_test",
+      speechResult: opts.speech,
+      currentState: "screening",
+      currentRiskScore: 0,
+    });
+    return vi.mocked(db.updateCall).mock.calls[0]![1] as Record<string, unknown>;
+  }
+
+  it("\"send $500 in gift cards\" sets both from the AI result", async () => {
+    const patch = await turn({
+      ai: aiTurn({ requested_amount: "$500", payment_method: "gift cards" }),
+      speech: "send $500 in gift cards",
+    });
+    expect(patch.requested_amount).toBe("$500");
+    expect(patch.payment_method).toBe("gift cards");
+  });
+
+  it("a later turn without them keeps the stored values (no overwrite)", async () => {
+    const patch = await turn({
+      ai: aiTurn({ requested_amount: "  ", payment_method: null }),
+      speech: "hello are you there",
+      call: { requested_amount: "$500", payment_method: "gift cards" },
+    });
+    expect(patch.requested_amount).toBe("$500");
+    expect(patch.payment_method).toBe("gift cards");
+  });
+
+  it("a later non-empty AI value replaces the stored one", async () => {
+    const patch = await turn({
+      ai: aiTurn({ requested_amount: "$900" }),
+      speech: "make it $900",
+      call: { requested_amount: "$500", payment_method: "gift cards" },
+    });
+    expect(patch.requested_amount).toBe("$900");
+  });
+
+  it("an AI failure still sets the payment method and amount by rules", async () => {
+    const patch = await turn({ ai: "down", speech: "send $500 in gift cards" });
+    expect(patch.payment_method).toBe("gift card");
+    expect(patch.requested_amount).toBe("$500");
+  });
+
+  it("an AI failure with nothing to extract writes no empty values", async () => {
+    const patch = await turn({ ai: "down", speech: "hello there" });
+    expect(patch).not.toHaveProperty("payment_method");
+    expect(patch).not.toHaveProperty("requested_amount");
   });
 });

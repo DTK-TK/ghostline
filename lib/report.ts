@@ -171,8 +171,8 @@ export async function buildAndStoreReport(callId: string): Promise<FraudReportRo
     caller_number:    call.from_number,
     claimed_identity: call.claimed_identity,
     scam_type:        guessScamType(call, flagIds),
-    amount:           null, // enriched from fraud_reports.report if previously set
-    payment_method:   null, // same — the conversation engine writes these to calls
+    amount:           call.requested_amount,
+    payment_method:   call.payment_method,
     red_flags:        redFlags,
     safe_word_result: extractSafeWordResult(events),
     callback_result:  extractCallbackResult(events),

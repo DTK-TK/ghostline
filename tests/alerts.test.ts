@@ -26,6 +26,8 @@ const call: CallRow = {
   ended_at: null,
   summary: null,
   is_simulated: false,
+  requested_amount: null,
+  payment_method: null,
 };
 
 function ctx(simulated: boolean, who: string | null = "CRA"): AlertContext {

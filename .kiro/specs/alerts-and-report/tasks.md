@@ -24,13 +24,13 @@ Re-planned for the hackathon MVP due Dec 4, 2026. Every task is kept. Decisions 
 
 Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engine, safe word and callback checks, the alert and fraud report, and the dashboard to watch it.
 
-- [ ] **16. Access control for the report and call links.** Follow the
+- [x] **16. Access control for the report and call links.** Follow the
   dashboard-and-simulator decision. Until then the id is the only protection.
   - _Proof: decision recorded in that spec; test or manual check once chosen._
   - _MVP, build item 4: One passcode in proxy.ts protects the report and call links._
   - _Re-plan: Decision: covered by DASHBOARD_PASSCODE in proxy.ts (/reports/* and /calls/*). Signed SMS tokens are deferred; the SMS carries the plain link and the passcode page returns to it._
 
-- [ ] **1. Create `app/reports/[id]/report-client.tsx` so `npx tsc --noEmit` passes.**
+- [x] **1. Create `app/reports/[id]/report-client.tsx` so `npx tsc --noEmit` passes.**
   A `"use client"` default export taking `{ cafcText: string }` (add the time
   fields from task 14 later). A read-only textarea with the CAFC text, a
   shadcn `Button` "Copy for CAFC report" (clipboard with a toast on success and
@@ -43,7 +43,7 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
     Copy, paste into a text editor and see the full CAFC block._
   - _MVP, build item 3: The report page does not compile without it._
 
-- [ ] **2. Add `alert_type` to the `alert_sent` payload schema in `lib/db.ts`.**
+- [x] **2. Add `alert_type` to the `alert_sent` payload schema in `lib/db.ts`.**
   `alert_type: z.enum(["risk", "checklist"])`. Also add the optional fields the
   new flow uses: `level`, `recipient_id`, `status` (`sending`, `sent`,
   `failed`). `lib/alerts.ts` already sends `alert_type`.

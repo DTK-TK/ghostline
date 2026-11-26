@@ -20,6 +20,8 @@ const call: CallRow = {
   ended_at: null,
   summary: null,
   is_simulated: true,
+  requested_amount: null,
+  payment_method: null,
 };
 
 let n = 0;

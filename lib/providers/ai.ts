@@ -1,21 +1,22 @@
 /**
  * lib/providers/ai.ts
  *
- * AI provider abstraction — allows Ghostline to run without Gemini.
+ * AI provider abstraction �?allows Ghostline to run without Gemini.
  *
  * Interface:
- *   generateTurn(history, persona) — returns structured JSON with reply, score, flags
+ *   generateTurn(history, persona) �?returns structured JSON with reply, score, flags
  *
  * Implementations:
- *   GeminiAI — production, uses gemini-2.5-flash
- *   OllamaAI — dev/local, uses Ollama OpenAI-compatible endpoint
- *   MockAI — test, scripted deterministic replies + rules-only scoring
+ *   GeminiAI �?production, uses gemini-2.5-flash
+ *   OllamaAI �?dev/local, uses Ollama OpenAI-compatible endpoint
+ *   MockAI �?test, scripted deterministic replies + rules-only scoring
  */
 
 import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
 import { scoreRules, type RulesResult } from "@/lib/scoring/rules";
 import { filterKnownFlags } from "@/lib/scoring/known-flags";
+import { extractAmount, extractPaymentMethod } from "@/lib/extract-evidence";
 
 // ---------------------------------------------------------------------------
 // Shared schema (from conversation-and-scoring spec)
@@ -211,7 +212,8 @@ export class MockAI implements AIProvider {
 
     return AITurnResponseSchema.parse({
       reply,
-      risk_score: rulesResult.score,
+      // The raw rules sum can exceed 100 (max 175); the schema caps at 100.
+      risk_score: Math.min(100, rulesResult.score),
       flags: rulesResult.flags,
       claimed_identity,
       claims_family,
@@ -235,7 +237,7 @@ You are speaking to an unknown caller BEFORE connecting them to the senior resid
 
 PERSONA RULES (follow strictly):
 - The greeting is already spoken before you are called. Never repeat it or introduce the call again.
-- Patient, warm, short sentences — maximum 2 sentences per turn, under 25 words total.
+- Patient, warm, short sentences �?maximum 2 sentences per turn, under 25 words total.
 - Never sarcastic. Never accuse anyone of being a scammer.
 - If you cannot connect the call: say "I'm not able to connect this call."
 - Never reveal, hint at, or repeat the safe word. Never confirm whether a safe-word attempt was close.
@@ -260,12 +262,12 @@ SCAM FLAG IDs (use exactly these strings in the "flags" array):
   (any other flag string is discarded)
 
 NEXT-STATE GUIDANCE embedded in reply:
-- If claims_family is true → ask for verification (do NOT reveal the safe word exists).
-- If risk_score >= 70 → move toward blocking: reply should end the conversation politely.
-- If risk_score 40-69 → take a message rather than connect.
-- If risk_score < 40 and no family claim → stay neutral, ask clarifying questions.
+- If claims_family is true �?ask for verification (do NOT reveal the safe word exists).
+- If risk_score >= 70 �?move toward blocking: reply should end the conversation politely.
+- If risk_score 40-69 �?take a message rather than connect.
+- If risk_score < 40 and no family claim �?stay neutral, ask clarifying questions.
 
-Respond ONLY with valid JSON matching this exact schema — no markdown, no code fences:
+Respond ONLY with valid JSON matching this exact schema �?no markdown, no code fences:
 {
   "reply": "<what Ghostline says next, following persona rules>",
   "risk_score": <integer 0-100>,
@@ -315,7 +317,7 @@ const SCRIPTED_REPLIES = [
 ];
 
 const GRANDMOTHER_REPLIES = [
-  "Oh my, hold on dear — I can't find my glasses.",
+  "Oh my, hold on dear �?I can't find my glasses.",
   "Now where did I put that? Marmalade, get off the phone table!",
   "Could you speak up a little? I'm a bit hard of hearing.",
   "I'm sorry, what was that? I was just feeding the cat.",
@@ -349,30 +351,6 @@ function extractIdentity(text: string): string | null {
   for (const pattern of patterns) {
     const match = pattern.exec(text);
     if (match?.[1]) return match[1].trim();
-  }
-  return null;
-}
-
-function extractAmount(text: string): string | null {
-  const pattern = /\$?\d{1,3}(?:,\d{3})*(?:\.\d{2})?|\d+\s*(?:dollars?|bucks?)/i;
-  const match = pattern.exec(text);
-  return match?.[0] ?? null;
-}
-
-function extractPaymentMethod(text: string): string | null {
-  const methods = [
-    "gift card",
-    "iTunes",
-    "Google Play",
-    "bitcoin",
-    "crypto",
-    "wire transfer",
-    "Western Union",
-    "courier",
-  ];
-  const lower = text.toLowerCase();
-  for (const method of methods) {
-    if (lower.includes(method.toLowerCase())) return method;
   }
   return null;
 }

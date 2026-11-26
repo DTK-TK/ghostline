@@ -368,6 +368,23 @@
         "chatSessionId": "sess_7c354f82-c4d4-4bca-93af-c7e070b4e09a",
         "timestamp": 1795685688485
       }
+    ],
+    "**1b. Fix `engine()` state transitions so scam calls can reach HIGH.**": [
+      {
+        "executionId": "16295fad-321a-43d8-96e0-c4d113c66f68",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795689161041
+      },
+      {
+        "executionId": "24c5e82b-076e-4d3e-978c-4d3761b66278",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795689479594
+      },
+      {
+        "executionId": "24c5e82b-076e-4d3e-978c-4d3761b66278",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795689658100
+      }
     ]
   }
 }

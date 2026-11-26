@@ -9,7 +9,8 @@
  *
  * URL: /reports/{fraud_reports.id}
  *
- * Print: add  ?print=1  to open with the print dialog, or use the browser's
+ * Print: add  ?print=1  to open with the print dialog (handled in
+ * report-client.tsx), or use the browser's
  * built-in Print (Ctrl/Cmd+P). The page uses Tailwind's print: variants to
  * hide the action buttons and show the full transcript.
  */

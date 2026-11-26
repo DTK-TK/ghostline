@@ -130,9 +130,13 @@ export const CallSchema = z.object({
   ended_at: z.string().datetime().nullable(),
   summary: z.string().nullable(),
   is_simulated: z.boolean().default(false),
+  requested_amount: z.string().nullable().default(null),
+  payment_method: z.string().nullable().default(null),
 });
 
 export const CallInsertSchema = CallSchema.omit({ id: true, started_at: true }).extend({
+  requested_amount: z.string().optional(),
+  payment_method: z.string().optional(),
   is_simulated: z.boolean().optional(),
   state: CallStateSchema.optional(),
   claimed_identity: z.string().optional(),
@@ -168,7 +172,15 @@ export const CallEventPayloadSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("callback_started"), target_phone: z.string() }),
   z.object({ type: z.literal("callback_result"),  outcome: z.string(), duration_seconds: z.number().int().optional() }),
   z.object({ type: z.literal("state_change"),     from: CallStateSchema, to: CallStateSchema }),
-  z.object({ type: z.literal("alert_sent"),       channel: z.enum(["sms", "call"]), recipient: z.string() }),
+  z.object({
+    type: z.literal("alert_sent"),
+    channel: z.enum(["sms", "call"]),
+    recipient: z.string(),
+    alert_type: z.enum(["risk", "checklist"]),
+    level: RiskLevelSchema.optional(),
+    recipient_id: z.string().optional(),
+    status: z.enum(["sending", "sent", "failed"]).optional(),
+  }),
 ]);
 
 export type CallEventPayload = z.infer<typeof CallEventPayloadSchema>;

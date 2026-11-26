@@ -29,6 +29,7 @@ import { combineScores, scoreToLevel } from "@/lib/scoring/combine";
 import { validateReply } from "@/lib/scoring/reply-guard";
 import { filterKnownFlags } from "@/lib/scoring/known-flags";
 import { sendAlerts } from "@/lib/alerts";
+import { extractAmount, extractPaymentMethod, nonEmpty } from "@/lib/extract-evidence";
 
 // ---------------------------------------------------------------------------
 // Public contract �?matches conversation-engine.ts TurnInput / TurnOutput
@@ -56,6 +57,8 @@ const FALLBACK_REPLIES: Record<string, string> = {
   medium: "I need a moment. Could you tell me your name and reason for calling?",
   high:   "I'm not able to connect this call. Goodbye.",
 };
+
+const SAFE_WORD_CHALLENGE = "What's the family word?";
 
 const SAFE_WORD_FAIL_POINTS = 50;
 
@@ -103,6 +106,7 @@ function computeNextState(
   claimsFamily: boolean,
   timeWasterEnabled: boolean,
   callerTurns: number,
+  safeWordPassed: boolean,
 ): CallState {
   // Terminal states don't transition.
   if (
@@ -118,18 +122,15 @@ function computeNextState(
     return timeWasterEnabled ? "time_wasted" : "scam_blocked";
   }
 
-  if (level === "medium") {
-    // Screen for up to MEDIUM_SCREEN_TURNS caller turns, then take a message.
-    return callerTurns >= MEDIUM_SCREEN_TURNS ? "completed" : "screening";
-  }
-
-  // LOW risk �?if the caller says they're family, stay in screening for the
-  // safe-word challenge; otherwise connect.
+  // A family claim connects only after a matched safe word, and never on the
+  // first caller turn. (A denied callback is HIGH through the score above.)
   if (claimsFamily) {
-    return "screening";
+    return safeWordPassed && callerTurns >= 2 ? "verified" : "screening";
   }
 
-  return "verified";
+  // No family claim (LOW or MEDIUM): screen for up to MEDIUM_SCREEN_TURNS
+  // caller turns, then take a message. An unknown caller is never connected.
+  return callerTurns >= MEDIUM_SCREEN_TURNS ? "completed" : "screening";
 }
 
 // ---------------------------------------------------------------------------
@@ -241,10 +242,25 @@ export async function engine(input: EngineInput): Promise<EngineOutput> {
     });
   }
 
-  // 9. Update calls row with latest risk.
+  // 9. Update calls row with latest risk. Amount and payment method: the
+  // latest non-empty AI value, else rules extraction when the AI is down,
+  // else keep what is stored (never overwrite with an empty value).
+  const requestedAmount =
+    nonEmpty(geminiResult?.requested_amount) ??
+    (usedFallback ? extractAmount(speechResult) : null) ??
+    call.requested_amount ??
+    null;
+  const paymentMethod =
+    nonEmpty(geminiResult?.payment_method) ??
+    (usedFallback ? extractPaymentMethod(speechResult) : null) ??
+    call.payment_method ??
+    null;
+
   await updateCall(callSid, {
     risk_score: combined.score,
     risk_level: combined.level,
+    ...(requestedAmount ? { requested_amount: requestedAmount } : {}),
+    ...(paymentMethod ? { payment_method: paymentMethod } : {}),
     claimed_identity: geminiResult?.claimed_identity ?? call.claimed_identity ?? undefined,
     summary: geminiResult?.summary ?? call.summary ?? undefined,
   });
@@ -258,13 +274,20 @@ export async function engine(input: EngineInput): Promise<EngineOutput> {
       typeof e.payload["text"] === "string" &&
       e.payload["text"].trim() !== "",
   ).length;
-  const claimsFamily = geminiResult?.claims_family ?? false;
+  // The claim sticks once challenged: the last system reply was the challenge.
+  const lastSystem = [...events]
+    .reverse()
+    .find((e) => e.type === "transcript" && e.payload["speaker"] === "system");
+  const claimsFamily =
+    (geminiResult?.claims_family ?? false) ||
+    lastSystem?.payload["text"] === SAFE_WORD_CHALLENGE;
   const nextState = computeNextState(
     currentState,
     combined.level,
     claimsFamily,
     household.time_waster_enabled,
     callerTurnCount,
+    safeWordCorrect,
   );
 
   // 10b. MEDIUM message taken: alert the family once. Fires only on the
@@ -280,8 +303,8 @@ export async function engine(input: EngineInput): Promise<EngineOutput> {
         call,
         level: combined.level,
         claimedIdentity: geminiResult?.claimed_identity ?? call.claimed_identity ?? null,
-        requestedAmount: null,
-        paymentMethod: null,
+        requestedAmount,
+        paymentMethod,
         safeWordResult: safeWordCorrect ? "passed" : failedAttempts > 0 ? "failed" : "not asked",
         callbackResult:
           callbackOutcome === "denied" || callbackOutcome === "confirmed" || callbackOutcome === "no_answer"
@@ -295,9 +318,14 @@ export async function engine(input: EngineInput): Promise<EngineOutput> {
   }
 
   // 11. Build reply.
-  const reply =
-    (!usedFallback && geminiResult ? validateReply(geminiResult.reply) : null) ??
-    fallbackReply(combined.level);
+  // A family claim awaiting the safe word always gets the fixed challenge
+  // line (R7.6, R7.11), so the AI reply cannot hint at the safe word.
+  const challenging =
+    claimsFamily && nextState === "screening" && combined.level !== "high";
+  const reply = challenging
+    ? SAFE_WORD_CHALLENGE
+    : ((!usedFallback && geminiResult ? validateReply(geminiResult.reply) : null) ??
+      fallbackReply(combined.level));
 
   // 12. Persist Ghostline's reply so later turns see it in history.
   // Scoring and silence counting only read speaker === "caller".

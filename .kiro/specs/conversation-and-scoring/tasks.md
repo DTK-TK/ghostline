@@ -28,6 +28,29 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
     you're calling?"._
   - _MVP, build item 1: A real call must reach the real engine, not the stub._
 
+- [x] **1b. Fix `engine()` state transitions so scam calls can reach HIGH.**
+  In `computeNextState` (`lib/conversation.ts`), stop moving a LOW caller
+  with no family claim to `verified` after the first turn. Apply R7: never
+  connect on the first turn; a family claim stays in `screening` with the
+  challenge reply "What's the family word?" until a matched safe word
+  (`verified`), and a denied callback goes to HIGH; with no claim, screen for
+  up to 3 caller turns, then LOW ends in `completed` with the message TwiML
+  and no alert, MEDIUM ends in `completed` with the message TwiML and one
+  MEDIUM alert, and HIGH at any turn takes the HIGH path (`time_wasted` or
+  `scam_blocked`). Re-score the whole transcript on every turn. No new DB
+  state (see design.md).
+  - _Proof: `tests/fixtures.test.ts` or a new `tests/fixtures-engine.test.ts`:
+    every scam fixture in `tests/fixtures/scams.json` reaches its expected
+    level when replayed turn by turn through `engine()` with `AI_PROVIDER=mock`;
+    `it.fails` removed from the simulator scenario tests
+    (`tests/simulate.test.ts`, `tests/simulate-e2e.test.ts`) that now pass;
+    `tests/conversation.test.ts`: "Hi Grandma it's me" as a first turn never
+    connects (R7.1, R7.6); the doctor's-office fixture ends in MESSAGE
+    (`completed`, message TwiML) with no alert (R7.3); a family claim with no
+    safe word never connects (R7.6, R7.9); `npx vitest run` passes, with a
+    report of which fixtures changed level._
+  - _MVP, build item 1b: Scam calls must be able to reach HIGH; today every unknown caller is connected after the first LOW turn. Requirements R7.1 to R7.11, R5._
+
 - [x] **6. DB-backed silence count.** Replace `computeSilenceCount` in the
   turn route (empty speech in `screening` currently ends the call at once)
   with a count of consecutive empty caller transcripts in `call_events`.

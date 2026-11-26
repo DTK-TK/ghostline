@@ -80,6 +80,8 @@ const call: CallRow = {
   ended_at: null,
   summary: null,
   is_simulated: false,
+  requested_amount: null,
+  payment_method: null,
 };
 const events: CallEventRow[] = [
   { id: "33333333-3333-4333-8333-333333333333", call_id: ID, type: "safe_word_attempt", payload: { matched: true, attempt: "secretword" }, created_at: "2026-01-01T00:00:01.000Z" },

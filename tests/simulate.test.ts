@@ -83,12 +83,6 @@ async function runAll(scenarioId: string) {
 }
 
 describe("simulator scenarios reach their expected level with the mock AI", () => {
-  // knownGap: engine() connects ("verified") a call whose first line scores LOW
-  // (authority alone = 30), so the call ends after line 1 and the scam never
-  // reaches HIGH. This is an engine gap, not a simulator one. Same convention
-  // as tests/fixtures.test.ts: it.fails flips when the engine screens longer,
-  // which prompts removal of the mark.
-  const ENGINE_GAP = new Set(["grandparent", "cra", "bank"]);
   for (const s of Object.values(SCENARIOS)) {
     const body = async () => {
       vi.stubEnv("SIMULATOR_SAFE_WORD", "teapot");
@@ -96,11 +90,10 @@ describe("simulator scenarios reach their expected level with the mock AI", () =
       expect(call.risk_level).toBe(s.expectedLevel);
       expect(call.ended_at).not.toBeNull();
     };
-    if (ENGINE_GAP.has(s.id)) it.fails(`${s.id} -> ${s.expectedLevel} [knownGap: engine verifies after a LOW first line]`, body);
-    else it(`${s.id} -> ${s.expectedLevel}`, body);
+    it(`${s.id} -> ${s.expectedLevel}`, body);
   }
 
-  it.fails("a HIGH scenario alerts the family once [knownGap: see above]; a LOW one does not", async () => {
+  it("a HIGH scenario alerts the family once; a LOW one does not", async () => {
     await runAll("grandparent");
     expect(sendAlerts).toHaveBeenCalledTimes(1);
     vi.mocked(sendAlerts).mockClear();

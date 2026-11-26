@@ -6,9 +6,7 @@
  *
  * It does not cover the browser: the 1.5 s pacing, badges, meter and timer.
  *
- * knownGap: engine() verifies a call after a LOW first line, so scam
- * scenarios end LOW instead of HIGH. Assertions that need HIGH use it.fails
- * and will start failing (as "unexpectedly passed") once the engine is fixed.
+ * All tests here pass; the checklist SMS needs calls.payment_method (task 6).
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
@@ -146,24 +144,24 @@ describe("grandparent (task 24, first half)", () => {
     expect(callerLines.length).toBeGreaterThan(0);
   });
 
-  it.fails("[knownGap: scam ends LOW] reaches HIGH", async () => {
+  it("reaches HIGH", async () => {
     const call = await run("grandparent");
     expect(call.risk_level).toBe("high");
   });
 
-  it.fails("[knownGap: scam ends LOW] sends one SIMULATED: alert per family member, once", async () => {
+  it("sends one SIMULATED: alert per family member, once", async () => {
     await run("grandparent");
     const alerts = mem.sms.filter((s) => s.body.startsWith("SIMULATED: GHOSTLINE HIGH"));
     expect(alerts.map((s) => s.to).sort()).toEqual(FAMILY.map((m) => m.phone).sort());
   });
 
-  it.fails("[knownGap: scam ends LOW] stores one report for the call", async () => {
+  it("stores one report for the call", async () => {
     const call = await run("grandparent");
     expect(mem.reports).toEqual([call.id]);
   });
 
-  it.fails(
-    "[knownGap: finalizeCall passes paymentMethod: null] sends the checklist SMS to each family member",
+  it(
+    "sends the checklist SMS to each family member",
     async () => {
       await run("grandparent");
       const checklist = mem.sms.filter((s) => s.body.startsWith("Reminder for"));

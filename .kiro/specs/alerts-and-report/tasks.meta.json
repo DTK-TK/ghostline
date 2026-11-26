@@ -1,0 +1,257 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "**16. Access control for the report and call links.** Follow the": [
+      {
+        "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795690240065
+      },
+      {
+        "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795690250293
+      },
+      {
+        "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795690286631
+      }
+    ],
+    "**1. Create `app/reports/[id]/report-client.tsx` so `npx tsc --noEmit` passes.**": [
+      {
+        "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795690240143
+      },
+      {
+        "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795690289596
+      },
+      {
+        "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795690337361
+      }
+    ],
+    "**2. Add `alert_type` to the `alert_sent` payload schema in `lib/db.ts`.**": [
+      {
+        "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795690240363
+      },
+      {
+        "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795690340724
+      },
+      {
+        "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795690390643
+      }
+    ],
+    "**6. Persist amount and payment method.** Migration `0003`: add": [
+      {
+        "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795690240472
+      },
+      {
+        "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795690393779
+      }
+    ],
+    "**7. Red-flag quotes.** `scoreRules` returns `matches: { flag, quote }[]`;": [
+      {
+        "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795690240580
+      }
+    ],
+    "**9. SMS body.** New template, per-field limits (40, 20, 20), cleaning of": [
+      {
+        "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795690240688
+      }
+    ],
+    "**10. Money-move checklist.** Rewrite `buildChecklistSms` as steps chosen by": [
+      {
+        "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795690240780
+      }
+    ],
+    "**8a. At-most-once sending (unique index only).** Migration: unique index on `call_events` for `alert_sent` (call, alert_type, recipient_id). In `lib/alerts.ts`: insert the `alert_sent` row first and send only if the insert succeeds (a unique violation means it was already sent), with a per-recipient `try/catch` so one failure does not stop the others.": [
+      {
+        "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795690240879
+      }
+    ],
+    "**15. Privacy of logs.** Add or reuse `maskPhone`. `sendAlerts`,": [
+      {
+        "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795690240987
+      }
+    ],
+    "**5. Wire the triggers.** Add `lib/alert-call.ts` (`alertCall(callId)`) and": [
+      {
+        "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795690241129
+      }
+    ],
+    "**4. Test: alerts are sent only once per call, even if HIGH is reported on several turns.**": [
+      {
+        "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795690241226
+      }
+    ],
+    "**3. Replace the dynamic `import()` calls in `lib/report.ts` with static imports.**": [
+      {
+        "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795690241300
+      }
+    ],
+    "**12. Unique report per call.** Migration: `UNIQUE` index on": [
+      {
+        "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795690241382
+      }
+    ],
+    "**13. Report page to the UI rules.** Dark theme on screen, white in print,": [
+      {
+        "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795690241467
+      }
+    ],
+    "**17. End-to-end check.** Simulate a HIGH call with a gift-card script and": [
+      {
+        "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795690241562
+      }
+    ],
+    "**8b. Claim statuses and retry.** The rest of original task 8: `sending`/`sent`/`failed` status on the claim row, compare-and-set retry of failed claims, `Promise.allSettled` over recipients.": [
+      {
+        "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795690241648
+      }
+    ],
+    "**11. One scam-type heuristic.** `lib/scam-type.ts` with whole-word": [
+      {
+        "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795690241748
+      }
+    ],
+    "**14. Time zone.** Show the viewer's local time and UTC on the page, and": [
+      {
+        "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795690241847
+      }
+    ],
+    "**R1** Triggers. Nothing calls `sendAlerts`. Task 5.": [
+      {
+        "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795690241930
+      }
+    ],
+    "**R2** Recipients. `getAlertRecipients` exists in `lib/db.ts` and": [
+      {
+        "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795690242031
+      }
+    ],
+    "**R3** Risk SMS. Builder exists, but truncation cuts the link and caller": [
+      {
+        "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795690242114
+      }
+    ],
+    "**R4** Checklist SMS. Current text is a reminder, not steps. Task 10.": [
+      {
+        "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795690242216
+      }
+    ],
+    "**R5** At most once. Read-then-send, racy. Tasks 4, 8.": [
+      {
+        "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795690242308
+      }
+    ],
+    "**R6** Alert events. No `alert_type` in the schema. Tasks 2, 8.": [
+      {
+        "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795690242395
+      }
+    ],
+    "**R7** Failure isolation. One failure aborts the loop. Tasks 5, 8.": [
+      {
+        "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795690242480
+      }
+    ],
+    "**R8** Evidence. No amount or payment columns, no quotes. Tasks 6, 7.": [
+      {
+        "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795690242571
+      }
+    ],
+    "**R9** Fraud report. Builder exists, never called, dynamic imports,": [
+      {
+        "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795690242648
+      }
+    ],
+    "**R10** CAFC text. `buildCafcText` exists and is used by the page, but the": [
+      {
+        "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795690242746
+      }
+    ],
+    "**R11** Report page. Does not build; breaks the UI rules. Tasks 1, 13, 14, 16.": [
+      {
+        "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795690242831
+      }
+    ],
+    "**R13** Privacy. `MockTelephony` logs full numbers and bodies. Task 15.": [
+      {
+        "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795690242916
+      }
+    ],
+    "**R14** Verification. No alert or report tests exist. Tasks 2, 3, 4, 8, 9 to 12.": [
+      {
+        "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
+        "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
+        "timestamp": 1795690243060
+      }
+    ]
+  }
+}
