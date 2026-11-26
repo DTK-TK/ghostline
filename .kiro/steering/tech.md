@@ -2,7 +2,7 @@
 inclusion: always
 ---
 Tech stack (all free tiers)
-Next.js 15 App Router + TypeScript, deployed on Vercel. API routes are the backend.
+Next.js 16 App Router + TypeScript, deployed on Vercel. API routes are the backend.
 Twilio Programmable Voice with TwiML: <Gather input="speech"> for listening, <Say> for
 speaking, <Dial> to connect calls, REST API for outbound calls, redirects and SMS.
 Every Twilio webhook must validate the X-Twilio-Signature header.
