@@ -360,3 +360,254 @@ describe("engine: MEDIUM takes a message", () => {
     expect((await turn(3, "screening")).nextState).toBe("completed");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Task 16: state transitions, dedup, fallback, monotonic floor, updateCall
+// ---------------------------------------------------------------------------
+
+describe("engine: transitions, dedup, fallback, floor, updateCall", () => {
+  type State = "screening" | "verified" | "scam_blocked" | "time_wasted" | "completed" | "transferring";
+
+  const aiTurn = (over: Record<string, unknown> = {}) => ({
+    reply: "Thank you. Who are you calling for?",
+    risk_score: 0,
+    flags: [] as string[],
+    claims_family: false,
+    claimed_identity: null,
+    summary: "",
+    ...over,
+  });
+
+  beforeEach(() => {
+    vi.resetModules();
+    delete process.env.GEMINI_API_KEY;
+    delete process.env.AI_PROVIDER;
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "log").mockImplementation(() => {});
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  async function setup(opts: {
+    ai?: Record<string, unknown> | Error;
+    events?: unknown[];
+    timeWaster?: boolean;
+    call?: Record<string, unknown>;
+  }) {
+    const db = await import("@/lib/db");
+    vi.mocked(db.getCallEvents).mockImplementation((async () => opts.events ?? []) as any);
+    vi.mocked(db.getHousehold).mockImplementation((async () => ({
+      id: "hh-1",
+      family_name: "Testerson",
+      time_waster_enabled: opts.timeWaster ?? false,
+    })) as any);
+    vi.mocked(db.getCallBySid).mockImplementation((async () => ({
+      id: "call-1",
+      household_id: "hh-1",
+      claimed_identity: null,
+      summary: null,
+      ...opts.call,
+    })) as any);
+    vi.mocked(db.appendEvent).mockClear();
+    vi.mocked(db.updateCall).mockClear();
+
+    const ai = await import("@/lib/scoring/ai");
+    if (opts.ai instanceof Error) {
+      vi.spyOn(ai, "callGemini").mockRejectedValue(opts.ai);
+    } else if (opts.ai) {
+      vi.spyOn(ai, "callGemini").mockResolvedValue(opts.ai as any);
+    }
+    const { engine } = await import("@/lib/conversation");
+    return { db, ai, engine };
+  }
+
+  const run = (
+    engine: (i: any) => Promise<any>,
+    currentState: State = "screening",
+    currentRiskScore = 0,
+  ) =>
+    engine({
+      callSid: "CA_test",
+      speechResult: "Hello, I am calling about your appointment",
+      currentState,
+      currentRiskScore,
+    });
+
+  const redFlagIds = (db: typeof import("@/lib/db")) =>
+    vi
+      .mocked(db.appendEvent)
+      .mock.calls.map((c) => c[0] as any)
+      .filter((e) => e.type === "red_flag")
+      .map((e) => e.payload.flag);
+
+  describe("state per band", () => {
+    it("HIGH with time-waster off -> scam_blocked", async () => {
+      const { engine } = await setup({ ai: aiTurn({ risk_score: 85 }), timeWaster: false });
+      const out = await run(engine);
+      expect(out.riskUpdate.level).toBe("high");
+      expect(out.nextState).toBe("scam_blocked");
+    });
+
+    it("HIGH with time-waster on -> time_wasted", async () => {
+      const { engine } = await setup({ ai: aiTurn({ risk_score: 85 }), timeWaster: true });
+      const out = await run(engine);
+      expect(out.riskUpdate.level).toBe("high");
+      expect(out.nextState).toBe("time_wasted");
+    });
+
+    it("MEDIUM with fewer than 3 caller turns -> screening", async () => {
+      const { engine } = await setup({ ai: aiTurn({ risk_score: 50 }) });
+      const out = await run(engine);
+      expect(out.riskUpdate.level).toBe("medium");
+      expect(out.nextState).toBe("screening");
+    });
+
+    it("LOW without a family claim -> verified", async () => {
+      const { engine } = await setup({ ai: aiTurn({ risk_score: 10, claims_family: false }) });
+      const out = await run(engine);
+      expect(out.riskUpdate.level).toBe("low");
+      expect(out.nextState).toBe("verified");
+    });
+
+    it("LOW with a family claim -> screening (safe-word challenge)", async () => {
+      const { engine } = await setup({ ai: aiTurn({ risk_score: 10, claims_family: true }) });
+      const out = await run(engine);
+      expect(out.riskUpdate.level).toBe("low");
+      expect(out.nextState).toBe("screening");
+    });
+  });
+
+  describe("terminal states", () => {
+    it.each(["scam_blocked", "completed", "verified", "transferring"] as const)(
+      "%s never transitions, even when the score is HIGH",
+      async (state) => {
+        const { engine } = await setup({ ai: aiTurn({ risk_score: 95 }) });
+        const out = await run(engine, state);
+        expect(out.nextState).toBe(state);
+      },
+    );
+
+    it("a terminal state is kept when the score is LOW too", async () => {
+      const { engine } = await setup({ ai: aiTurn({ risk_score: 0 }) });
+      expect((await run(engine, "scam_blocked")).nextState).toBe("scam_blocked");
+    });
+  });
+
+  describe("red_flag dedup", () => {
+    it("writes a new AI flag once", async () => {
+      const { engine, db } = await setup({ ai: aiTurn({ risk_score: 30, flags: ["urgency", "urgency"] }) });
+      await run(engine);
+      expect(redFlagIds(db)).toEqual(["urgency"]);
+    });
+
+    it("does not rewrite a flag that already has a red_flag event", async () => {
+      const { engine, db } = await setup({
+        ai: aiTurn({ risk_score: 30, flags: ["urgency", "secrecy"] }),
+        events: [{ type: "red_flag", payload: { type: "red_flag", flag: "urgency" } }],
+      });
+      await run(engine);
+      expect(redFlagIds(db)).toEqual(["secrecy"]);
+    });
+
+    it("writes no red_flag events when every flag was already recorded", async () => {
+      const { engine, db } = await setup({
+        ai: aiTurn({ risk_score: 30, flags: ["urgency"] }),
+        events: [{ type: "red_flag", payload: { type: "red_flag", flag: "urgency" } }],
+      });
+      await run(engine);
+      expect(redFlagIds(db)).toHaveLength(0);
+    });
+  });
+
+  describe("AI fallback", () => {
+    it("GeminiUnavailableError -> rules-only scoring and scripted reply", async () => {
+      const ai = await import("@/lib/scoring/ai");
+      const { engine, db } = await setup({
+        ai: new ai.GeminiUnavailableError("timeout"),
+        events: [],
+      });
+      const out = await engine({
+        callSid: "CA_test",
+        speechResult: "This is an emergency, I need help right now",
+        currentState: "screening",
+        currentRiskScore: 0,
+      });
+      expect(out.riskUpdate).toEqual({ score: 45, level: "medium" });
+      expect(out.reply).toBe(
+        "I need a moment. Could you tell me your name and reason for calling?",
+      );
+      const details = vi
+        .mocked(db.appendEvent)
+        .mock.calls.map((c) => c[0] as any)
+        .filter((e) => e.type === "red_flag")
+        .map((e) => e.payload.detail);
+      expect(details.length).toBeGreaterThan(0);
+      expect(details.every((d) => d === "rules-only")).toBe(true);
+    });
+
+    it("uses the HIGH scripted line when the prior score is already HIGH", async () => {
+      const ai = await import("@/lib/scoring/ai");
+      const { engine } = await setup({ ai: new ai.GeminiUnavailableError("bad json") });
+      const out = await run(engine, "screening", 90);
+      expect(out.riskUpdate.level).toBe("high");
+      expect(out.reply).toBe("I'm not able to connect this call. Goodbye.");
+    });
+
+    it("rethrows errors that are not GeminiUnavailableError", async () => {
+      const { engine } = await setup({ ai: new Error("boom") });
+      await expect(run(engine)).rejects.toThrow("boom");
+    });
+  });
+
+  describe("monotonic floor", () => {
+    it("never lowers the score below currentRiskScore", async () => {
+      const { engine } = await setup({ ai: aiTurn({ risk_score: 10 }) });
+      const out = await run(engine, "screening", 60);
+      expect(out.riskUpdate).toEqual({ score: 60, level: "medium" });
+    });
+
+    it("a higher new score still wins over the floor", async () => {
+      const { engine } = await setup({ ai: aiTurn({ risk_score: 80 }) });
+      const out = await run(engine, "screening", 20);
+      expect(out.riskUpdate).toEqual({ score: 80, level: "high" });
+    });
+  });
+
+  describe("updateCall", () => {
+    it("writes risk_score, risk_level, claimed_identity and summary from the AI", async () => {
+      const { engine, db } = await setup({
+        ai: aiTurn({
+          risk_score: 55,
+          claimed_identity: "Pat Example",
+          summary: "Caller says they are from the bank.",
+        }),
+      });
+      await run(engine);
+      expect(db.updateCall).toHaveBeenCalledWith("CA_test", {
+        risk_score: 55,
+        risk_level: "medium",
+        claimed_identity: "Pat Example",
+        summary: "Caller says they are from the bank.",
+      });
+    });
+
+    it("keeps the existing claimed_identity and summary when the AI is unavailable", async () => {
+      const ai = await import("@/lib/scoring/ai");
+      const { engine, db } = await setup({
+        ai: new ai.GeminiUnavailableError("down"),
+        call: { claimed_identity: "Sam Sample", summary: "Earlier summary." },
+      });
+      await run(engine);
+      expect(db.updateCall).toHaveBeenCalledWith(
+        "CA_test",
+        expect.objectContaining({
+          risk_score: 0,
+          risk_level: "low",
+          claimed_identity: "Sam Sample",
+          summary: "Earlier summary.",
+        }),
+      );
+    });
+  });
+});

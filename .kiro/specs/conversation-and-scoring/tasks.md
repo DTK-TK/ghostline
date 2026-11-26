@@ -134,13 +134,13 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
     least 100 runs per property._
   - _MVP, build item 10: Property-based tests are a stated requirement._
 
-- [ ] **16. Engine tests.** `tests/conversation.test.ts` with `lib/db`
+- [x] **16. Engine tests.** `tests/conversation.test.ts` with `lib/db`
   mocked: state transitions per band, terminal states, red-flag dedup,
   fallback, monotonic floor, `updateCall` fields.
   - _Proof: `npx vitest run tests/conversation.test.ts` passes._
   - _MVP, build item 10: Proves the engine on the live path._
 
-- [ ] **17. Rules, combine and AI unit tests.** `tests/scoring-rules.test.ts`,
+- [-] **17. Rules, combine and AI unit tests.** `tests/scoring-rules.test.ts`,
   `tests/scoring-combine.test.ts` (every R5 branch, 39/40/69/70, cap),
   `tests/scoring-ai.test.ts` (config has `responseMimeType` and an abort
   signal, zod failure, timeout).

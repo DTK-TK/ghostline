@@ -8,7 +8,7 @@ vi.mock("@google/genai", () => ({
   },
 }));
 
-import { GeminiAI } from "@/lib/providers/ai";
+import { GeminiAI, AIUnavailableError } from "@/lib/providers/ai";
 
 const validResponse = {
   reply: "Thank you. Who are you calling for?",
@@ -63,4 +63,68 @@ describe("GeminiAI system prompt", () => {
       expect(instruction).toContain("Smith");
     },
   );
+});
+
+describe("GeminiAI request config and failure handling", () => {
+  const ctx = { familyName: "Smith", inTimeWaster: false };
+
+  beforeEach(() => {
+    generateContent.mockReset();
+    process.env.GEMINI_API_KEY = "test-key";
+  });
+
+  it("requests JSON output, the flash model and an abort signal", async () => {
+    generateContent.mockResolvedValue({ text: JSON.stringify(validResponse) });
+    await new GeminiAI().generateTurn([], "Hi", ctx);
+    const req = generateContent.mock.calls[0]![0];
+    expect(req.model).toBe("gemini-2.5-flash");
+    expect(req.config.responseMimeType).toBe("application/json");
+    expect(req.config.abortSignal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("throws AIUnavailableError when zod validation fails", async () => {
+    generateContent.mockResolvedValue({
+      text: JSON.stringify({ ...validResponse, risk_score: 150 }),
+    });
+    await expect(new GeminiAI().generateTurn([], "Hi", ctx)).rejects.toBeInstanceOf(
+      AIUnavailableError,
+    );
+  });
+
+  it("throws AIUnavailableError on invalid JSON", async () => {
+    generateContent.mockResolvedValue({ text: "not json" });
+    await expect(new GeminiAI().generateTurn([], "Hi", ctx)).rejects.toBeInstanceOf(
+      AIUnavailableError,
+    );
+  });
+
+  it("throws AIUnavailableError when the abort signal fires (timeout)", async () => {
+    // AbortSignal.timeout uses an internal timer that fake timers do not
+    // control, so capture the requested delay and fire the abort ourselves.
+    const controller = new AbortController();
+    const timeoutSpy = vi
+      .spyOn(AbortSignal, "timeout")
+      .mockReturnValue(controller.signal);
+    try {
+      generateContent.mockImplementation(
+        (req: { config: { abortSignal: AbortSignal } }) =>
+          new Promise((_resolve, reject) => {
+            req.config.abortSignal.addEventListener("abort", () => {
+              const e = new Error("The operation was aborted");
+              e.name = "AbortError";
+              reject(e);
+            });
+          }),
+      );
+      const result = new GeminiAI().generateTurn([], "Hi", ctx).then(
+        () => null,
+        (e: unknown) => e,
+      );
+      expect(timeoutSpy).toHaveBeenCalledWith(6000);
+      controller.abort();
+      expect(await result).toBeInstanceOf(AIUnavailableError);
+    } finally {
+      timeoutSpy.mockRestore();
+    }
+  });
 });
