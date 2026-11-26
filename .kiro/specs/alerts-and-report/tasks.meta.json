@@ -74,6 +74,16 @@
         "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
         "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
         "timestamp": 1795690240580
+      },
+      {
+        "executionId": "c78cbe22-5a24-4878-9a05-cc38018016c6",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795697476769
+      },
+      {
+        "executionId": "c78cbe22-5a24-4878-9a05-cc38018016c6",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795697626912
       }
     ],
     "**9. SMS body.** New template, per-field limits (40, 20, 20), cleaning of": [
@@ -81,6 +91,16 @@
         "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
         "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
         "timestamp": 1795690240688
+      },
+      {
+        "executionId": "c78cbe22-5a24-4878-9a05-cc38018016c6",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795697712354
+      },
+      {
+        "executionId": "c78cbe22-5a24-4878-9a05-cc38018016c6",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795698000666
       }
     ],
     "**10. Money-move checklist.** Rewrite `buildChecklistSms` as steps chosen by": [
@@ -88,6 +108,16 @@
         "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
         "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
         "timestamp": 1795690240780
+      },
+      {
+        "executionId": "c78cbe22-5a24-4878-9a05-cc38018016c6",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795698001206
+      },
+      {
+        "executionId": "c78cbe22-5a24-4878-9a05-cc38018016c6",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795698096848
       }
     ],
     "**8a. At-most-once sending (unique index only).** Migration: unique index on `call_events` for `alert_sent` (call, alert_type, recipient_id). In `lib/alerts.ts`: insert the `alert_sent` row first and send only if the insert succeeds (a unique violation means it was already sent), with a per-recipient `try/catch` so one failure does not stop the others.": [
@@ -95,6 +125,16 @@
         "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
         "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
         "timestamp": 1795690240879
+      },
+      {
+        "executionId": "c78cbe22-5a24-4878-9a05-cc38018016c6",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795697627366
+      },
+      {
+        "executionId": "c78cbe22-5a24-4878-9a05-cc38018016c6",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795697711730
       }
     ],
     "**15. Privacy of logs.** Add or reuse `maskPhone`. `sendAlerts`,": [
@@ -102,6 +142,16 @@
         "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
         "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
         "timestamp": 1795690240987
+      },
+      {
+        "executionId": "c78cbe22-5a24-4878-9a05-cc38018016c6",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795698769444
+      },
+      {
+        "executionId": "c78cbe22-5a24-4878-9a05-cc38018016c6",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795698838689
       }
     ],
     "**5. Wire the triggers.** Add `lib/alert-call.ts` (`alertCall(callId)`) and": [
@@ -109,6 +159,16 @@
         "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
         "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
         "timestamp": 1795690241129
+      },
+      {
+        "executionId": "c78cbe22-5a24-4878-9a05-cc38018016c6",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795698097517
+      },
+      {
+        "executionId": "c78cbe22-5a24-4878-9a05-cc38018016c6",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795698721022
       }
     ],
     "**4. Test: alerts are sent only once per call, even if HIGH is reported on several turns.**": [
@@ -116,6 +176,16 @@
         "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
         "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
         "timestamp": 1795690241226
+      },
+      {
+        "executionId": "c78cbe22-5a24-4878-9a05-cc38018016c6",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795698721548
+      },
+      {
+        "executionId": "c78cbe22-5a24-4878-9a05-cc38018016c6",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795698768707
       }
     ],
     "**3. Replace the dynamic `import()` calls in `lib/report.ts` with static imports.**": [
@@ -123,6 +193,11 @@
         "executionId": "863648df-17ff-48f6-b84d-0a95931c3f1d",
         "chatSessionId": "sess_0fd5a49d-1591-4dc3-a657-5d70183067a6",
         "timestamp": 1795690241300
+      },
+      {
+        "executionId": "c78cbe22-5a24-4878-9a05-cc38018016c6",
+        "chatSessionId": "sess_206f59fc-5983-4813-b89c-b46f33f077ff",
+        "timestamp": 1795698839431
       }
     ],
     "**12. Unique report per call.** Migration: `UNIQUE` index on": [

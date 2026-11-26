@@ -31,13 +31,13 @@ import {
   startedAtFrom,
   enterHighRisk,
 } from "@/lib/time-waster";
-import { scoreRules } from "@/lib/scoring/rules";
+import { scoreRules, QUOTE_MAX_CHARS } from "@/lib/scoring/rules";
 import { callGemini, GeminiUnavailableError } from "@/lib/scoring/ai";
 import type { ConversationTurn } from "@/lib/scoring/ai";
 import { combineScores, creditsFromEvents, scoreToLevel } from "@/lib/scoring/combine";
 import { validateReply } from "@/lib/scoring/reply-guard";
 import { filterKnownFlags } from "@/lib/scoring/known-flags";
-import { sendAlerts } from "@/lib/alerts";
+import { alertCall } from "@/lib/alert-call";
 import { extractAmount, extractPaymentMethod, nonEmpty } from "@/lib/extract-evidence";
 import { checkSafeWord } from "@/lib/safe-word";
 import { startCallback, HOLD_REPLY } from "@/lib/callback";
@@ -167,6 +167,10 @@ function computeNextState(
 // New flags detection (for red_flag events)
 // ---------------------------------------------------------------------------
 
+function cutQuote(text: string): string {
+  return text.trim().replace(/\s+/g, " ").slice(0, QUOTE_MAX_CHARS);
+}
+
 function newFlags(current: string[], prior: string[]): string[] {
   const priorSet = new Set(prior);
   return current.filter((f) => !priorSet.has(f));
@@ -240,7 +244,11 @@ async function handleSafeWordAttempt(args: {
     priorCredits: creditsFromEvents(events),
   });
 
+  // Quotes come from STORED caller turns only. A flag first found in the
+  // spoken attempt gets "[redacted]" so the attempt text is never stored.
+  const storedQuotes = new Map(storedRules.matches.map((m) => [m.flag, m.quote]));
   for (const flagId of newFlags(combined.flags, priorFlagIds)) {
+    const quote = attemptFlags.has(flagId) ? SAFE_WORD_REDACTED : storedQuotes.get(flagId);
     await appendEvent({
       call_id: call.id,
       type: "red_flag",
@@ -248,7 +256,7 @@ async function handleSafeWordAttempt(args: {
         type: "red_flag",
         flag: flagId,
         detail: "rules-only",
-        ...(attemptFlags.has(flagId) ? { quote: SAFE_WORD_REDACTED } : {}),
+        ...(quote ? { quote } : {}),
       },
     });
   }
@@ -258,6 +266,7 @@ async function handleSafeWordAttempt(args: {
     ...(attemptPayment ? { payment_method: attemptPayment } : {}),
     ...(attemptAmount ? { requested_amount: attemptAmount } : {}),
   });
+  if (combined.level === "high") await alertCall(call.id);
 
   const callerTurns = events.filter(
     (e) =>
@@ -482,7 +491,15 @@ export async function engine(input: EngineInput): Promise<EngineOutput> {
 
   // 8. Persist new red_flag events for flags not seen before.
   const freshFlags = newFlags(combined.flags, priorFlagIds);
+  // The quote is the caller's own words: the rules match when the rules found
+  // the flag, else the utterance the AI was answering. Flags that are not
+  // caller speech (safe_word_fail, callback_denied) carry no quote.
+  const ruleQuotes = new Map(rulesResult.matches.map((m) => [m.flag, m.quote]));
   for (const flagId of freshFlags) {
+    const quote =
+      flagId === "safe_word_fail" || flagId === "callback_denied"
+        ? ""
+        : ruleQuotes.get(flagId) || cutQuote(speechResult);
     await appendEvent({
       call_id: call.id,
       type: "red_flag",
@@ -490,6 +507,7 @@ export async function engine(input: EngineInput): Promise<EngineOutput> {
         type: "red_flag",
         flag: flagId,
         detail: usedFallback ? "rules-only" : "ai+rules",
+        ...(quote ? { quote } : {}),
       },
     });
   }
@@ -555,33 +573,18 @@ export async function engine(input: EngineInput): Promise<EngineOutput> {
       : null;
   const highApplies = high !== null && high.state === nextState && nextState !== currentState;
 
-  // 10b. MEDIUM message taken: alert the family once. Fires only on the
-  // transition into "completed"; sendAlerts is also idempotent per recipient.
-  if (
+  // 10b. Alerts, via the one entry point (best effort, never throws).
+  // HIGH goes out now. MEDIUM goes out on the transition into "completed"
+  // (message taken). Repeats are harmless: sending is once per recipient.
+  if (combined.level === "high") {
+    await alertCall(call.id);
+  } else if (
     nextState === "completed" &&
     currentState !== "completed" &&
     combined.level === "medium"
   ) {
-    const callbackOutcome = events.find((e) => e.type === "callback_result")?.payload["outcome"];
-    try {
-      await sendAlerts({
-        call,
-        level: combined.level,
-        claimedIdentity: geminiResult?.claimed_identity ?? call.claimed_identity ?? null,
-        requestedAmount,
-        paymentMethod,
-        safeWordResult: safeWordCorrect ? "passed" : failedAttempts > 0 ? "failed" : "not asked",
-        callbackResult:
-          callbackOutcome === "denied" || callbackOutcome === "confirmed" || callbackOutcome === "no_answer"
-            ? callbackOutcome
-            : "not initiated",
-      });
-    } catch (err) {
-      // Never drop the call because an SMS failed.
-      console.error("[conversation] alert failed:", err instanceof Error ? err.message : "unknown");
-    }
+    await alertCall(call.id, { messageTaken: true });
   }
-
   // 11. Build reply.
   // A family claim awaiting the safe word always gets the fixed challenge
   // line (R7.6, R7.11), so the AI reply cannot hint at the safe word.

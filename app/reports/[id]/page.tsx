@@ -141,7 +141,7 @@ export default async function ReportPage({ params }: PageParams) {
                 <span className="font-mono bg-red-50 text-red-700 px-2 py-0.5 rounded text-xs">
                   {f.flag_id}
                 </span>
-                <span className="text-gray-700">{f.detail}</span>
+                <span className="text-gray-700">{f.quote ? `"${f.quote}"` : ""}</span>
               </li>
             ))}
           </ul>

@@ -47,7 +47,7 @@ export const FraudReportDataSchema = z.object({
   red_flags: z.array(
     z.object({
       flag_id: z.string(),
-      detail: z.string(),
+      quote: z.string().default(""),
     }),
   ),
   /** "passed" | "failed" | "not asked" */
@@ -84,12 +84,12 @@ function extractTranscript(
     .filter((t) => t.text.length > 0);
 }
 
-function extractRedFlags(events: CallEventRow[]): Array<{ flag_id: string; detail: string }> {
+function extractRedFlags(events: CallEventRow[]): Array<{ flag_id: string; quote: string }> {
   return events
     .filter((e) => e.type === "red_flag")
     .map((e) => ({
       flag_id: typeof e.payload["flag"]   === "string" ? e.payload["flag"]   : "unknown",
-      detail:  typeof e.payload["detail"] === "string" ? e.payload["detail"] : "",
+      quote:   typeof e.payload["quote"]  === "string" ? e.payload["quote"]  : "",
     }));
 }
 
@@ -240,7 +240,7 @@ export function buildCafcText(report: FraudReportData): string {
     `Risk score:          ${report.risk_score}/100 (${report.risk_level.toUpperCase()})`,
     "",
     "Red flags detected:",
-    ...report.red_flags.map((f) => `  • ${f.flag_id}: ${f.detail}`),
+    ...report.red_flags.map((f) => `  - ${f.flag_id}: "${f.quote}"`),
     "",
     "Summary:",
     `  ${report.summary ?? "(none)"}`,

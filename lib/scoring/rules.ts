@@ -12,7 +12,7 @@
  */
 
 // ---------------------------------------------------------------------------
-// Rule table �?mirrored from scam-rules.md
+// Rule table - mirrored from scam-rules.md
 // ---------------------------------------------------------------------------
 
 export interface RuleFlag {
@@ -137,11 +137,45 @@ export const RULES: RuleFlag[] = [
 // Public API
 // ---------------------------------------------------------------------------
 
+/** Longest quote stored per matched flag. */
+export const QUOTE_MAX_CHARS = 200;
+
+export interface RuleMatch {
+  /** Flag id that fired. */
+  flag: string;
+  /** The caller utterance that contains the match, cut to QUOTE_MAX_CHARS. */
+  quote: string;
+}
+
 export interface RulesResult {
-  /** Raw score from rules layer (0–∞ before cap). Call combine.ts to cap. */
+  /** Raw score from rules layer (0 to infinity before cap). Call combine.ts to cap. */
   score: number;
   /** IDs of triggered flags, deduplicated. */
   flags: string[];
+  /** One entry per triggered flag, in the same order as `flags`. */
+  matches: RuleMatch[];
+}
+
+function cutQuote(text: string): string {
+  const t = text.trim().replace(/\s+/g, " ");
+  return t.length > QUOTE_MAX_CHARS ? t.slice(0, QUOTE_MAX_CHARS) : t;
+}
+
+/**
+ * Find the caller utterance that caused a rule to fire. Prefers the first
+ * single turn that matches; falls back to the matched text in the joined
+ * transcript when a pattern only matches across two turns.
+ */
+function findQuote(rule: RuleFlag, transcript: string[], combined: string): string | null {
+  const all = [...rule.patterns, ...(rule.sameTurnPatterns ?? [])];
+  for (const turn of transcript) {
+    if (all.some((p) => p.test(turn))) return cutQuote(turn);
+  }
+  for (const p of rule.patterns) {
+    const m = p.exec(combined);
+    if (m) return cutQuote(m[0]);
+  }
+  return null;
 }
 
 /**
@@ -149,18 +183,22 @@ export interface RulesResult {
  *
  * @param transcript - Array of caller utterances collected so far.
  *   Caller turns only; system/persona lines must NOT be included.
- * @returns { score, flags } �?score is the sum of unique flag weights.
+ * @returns { score, flags, matches } - score is the sum of unique flag weights.
  *   Each flag fires at most once per call regardless of repetition.
  */
 export function scoreRules(transcript: string[]): RulesResult {
   const combined = transcript.join(" ");
   const triggered = new Set<string>();
+  const matches: RuleMatch[] = [];
 
   for (const rule of RULES) {
     const hit =
       rule.patterns.some((p) => p.test(combined)) ||
       (rule.sameTurnPatterns ?? []).some((p) => transcript.some((turn) => p.test(turn)));
-    if (hit) triggered.add(rule.id); // one hit is enough to fire the flag
+    if (hit) {
+      triggered.add(rule.id); // one hit is enough to fire the flag
+      matches.push({ flag: rule.id, quote: findQuote(rule, transcript, combined) ?? "" });
+    }
   }
 
   const flags = Array.from(triggered);
@@ -169,5 +207,5 @@ export function scoreRules(transcript: string[]): RulesResult {
     return sum + (rule?.points ?? 0);
   }, 0);
 
-  return { score, flags };
+  return { score, flags, matches };
 }

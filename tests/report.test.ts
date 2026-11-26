@@ -39,3 +39,14 @@ describe("buildCafcText SIMULATED label", () => {
     expect(text).not.toContain("SIMULATED");
   });
 });
+
+describe("buildCafcText red-flag quotes", () => {
+  it("shows each flag with the caller's quote", () => {
+    const data = FraudReportDataSchema.parse({
+      ...base,
+      red_flags: [{ flag_id: "payment_method", quote: "Buy a gift card" }],
+    });
+    expect(data.red_flags[0]!.quote).toBe("Buy a gift card");
+    expect(buildCafcText(data)).toContain('  - payment_method: "Buy a gift card"');
+  });
+});

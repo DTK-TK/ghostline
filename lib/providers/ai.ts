@@ -1,15 +1,15 @@
 /**
  * lib/providers/ai.ts
  *
- * AI provider abstraction �?allows Ghostline to run without Gemini.
+ * AI provider abstraction - allows Ghostline to run without Gemini.
  *
  * Interface:
- *   generateTurn(history, persona) �?returns structured JSON with reply, score, flags
+ *   generateTurn(history, persona) - returns structured JSON with reply, score, flags
  *
  * Implementations:
- *   GeminiAI �?production, uses gemini-2.5-flash
- *   OllamaAI �?dev/local, uses Ollama OpenAI-compatible endpoint
- *   MockAI �?test, scripted deterministic replies + rules-only scoring
+ *   GeminiAI - production, uses gemini-2.5-flash
+ *   OllamaAI - dev/local, uses Ollama OpenAI-compatible endpoint
+ *   MockAI - test, scripted deterministic replies + rules-only scoring
  */
 
 import { GoogleGenAI } from "@google/genai";
@@ -282,7 +282,7 @@ You are speaking to an unknown caller BEFORE connecting them to the senior resid
 
 PERSONA RULES (follow strictly):
 - The greeting is already spoken before you are called. Never repeat it or introduce the call again.
-- Patient, warm, short sentences �?maximum 2 sentences per turn, under 25 words total.
+- Patient, warm, short sentences - maximum 2 sentences per turn, under 25 words total.
 - Never sarcastic. Never accuse anyone of being a scammer.
 - If you cannot connect the call: say "I'm not able to connect this call."
 - Never reveal, hint at, or repeat the safe word. Never confirm whether a safe-word attempt was close.
@@ -295,12 +295,12 @@ SCAM FLAG IDs (use exactly these strings in the "flags" array):
   (any other flag string is discarded)
 
 NEXT-STATE GUIDANCE embedded in reply:
-- If claims_family is true �?ask for verification (do NOT reveal the safe word exists).
-- If risk_score >= 70 �?move toward blocking: reply should end the conversation politely.
-- If risk_score 40-69 �?take a message rather than connect.
-- If risk_score < 40 and no family claim �?stay neutral, ask clarifying questions.
+- If claims_family is true - ask for verification (do NOT reveal the safe word exists).
+- If risk_score >= 70 - move toward blocking: reply should end the conversation politely.
+- If risk_score 40-69 - take a message rather than connect.
+- If risk_score < 40 and no family claim - stay neutral, ask clarifying questions.
 
-Respond ONLY with valid JSON matching this exact schema �?no markdown, no code fences:
+Respond ONLY with valid JSON matching this exact schema - no markdown, no code fences:
 {
   "reply": "<what Ghostline says next, following persona rules>",
   "risk_score": <integer 0-100>,

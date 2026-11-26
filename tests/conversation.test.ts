@@ -17,7 +17,7 @@ vi.mock("@/lib/db", () => ({
   appendEvent: vi.fn(async () => undefined),
 }));
 
-vi.mock("@/lib/alerts", () => ({ sendAlerts: vi.fn(async () => undefined) }));
+vi.mock("@/lib/alert-call", () => ({ alertCall: vi.fn(async () => undefined) }));
 
 describe("engine: missing GEMINI_API_KEY", () => {
   const saved = { key: process.env.GEMINI_API_KEY, provider: process.env.AI_PROVIDER };
@@ -334,30 +334,31 @@ describe("engine: MEDIUM takes a message", () => {
   }
 
   it("keeps screening on caller turns 1 and 2, with no alert", async () => {
-    const alerts = await import("@/lib/alerts");
-    vi.mocked(alerts.sendAlerts).mockClear();
+    const alerts = await import("@/lib/alert-call");
+    vi.mocked(alerts.alertCall).mockClear();
     expect((await turn(1, "screening")).nextState).toBe("screening");
     expect((await turn(2, "screening")).nextState).toBe("screening");
-    expect(alerts.sendAlerts).not.toHaveBeenCalled();
+    expect(alerts.alertCall).not.toHaveBeenCalled();
   });
 
   it("completes after the 3rd caller turn and sends exactly one alert", async () => {
-    const alerts = await import("@/lib/alerts");
-    vi.mocked(alerts.sendAlerts).mockClear();
+    const alerts = await import("@/lib/alert-call");
+    vi.mocked(alerts.alertCall).mockClear();
     const out = await turn(3, "screening");
     expect(out.riskUpdate.level).toBe("medium");
     expect(out.nextState).toBe("completed");
-    expect(alerts.sendAlerts).toHaveBeenCalledTimes(1);
+    expect(alerts.alertCall).toHaveBeenCalledTimes(1);
 
     // A later turn on an already completed call does not alert again.
     expect((await turn(4, "completed")).nextState).toBe("completed");
-    expect(alerts.sendAlerts).toHaveBeenCalledTimes(1);
+    expect(alerts.alertCall).toHaveBeenCalledTimes(1);
   });
 
-  it("still completes the call when the alert fails", async () => {
-    const alerts = await import("@/lib/alerts");
-    vi.mocked(alerts.sendAlerts).mockRejectedValueOnce(new Error("sms down"));
+  it("tells alertCall that a message was taken", async () => {
+    const alerts = await import("@/lib/alert-call");
+    vi.mocked(alerts.alertCall).mockClear();
     expect((await turn(3, "screening")).nextState).toBe("completed");
+    expect(alerts.alertCall).toHaveBeenCalledWith(expect.any(String), { messageTaken: true });
   });
 });
 
@@ -548,12 +549,12 @@ describe("engine: transitions, dedup, fallback, floor, updateCall", () => {
     });
 
     it("LOW, no claim, 3 caller turns -> completed with no alert", async () => {
-      const alerts = await import("@/lib/alerts");
-      vi.mocked(alerts.sendAlerts).mockClear();
+      const alerts = await import("@/lib/alert-call");
+      vi.mocked(alerts.alertCall).mockClear();
       const { engine } = await setup({ ai: aiTurn({ risk_score: 0 }), events: callerTurns(3) });
       const out = await run(engine);
       expect(out.nextState).toBe("completed");
-      expect(alerts.sendAlerts).not.toHaveBeenCalled();
+      expect(alerts.alertCall).not.toHaveBeenCalled();
     });
 
     it("LOW, no claim, 2 caller turns -> still screening", async () => {
@@ -633,6 +634,12 @@ describe("engine: transitions, dedup, fallback, floor, updateCall", () => {
         .map((e) => e.payload.detail);
       expect(details.length).toBeGreaterThan(0);
       expect(details.every((d) => d === "rules-only")).toBe(true);
+      const quotes = vi
+        .mocked(db.appendEvent)
+        .mock.calls.map((c) => c[0] as any)
+        .filter((e) => e.type === "red_flag")
+        .map((e) => e.payload.quote);
+      expect(quotes.every((q) => q === "This is an emergency, I need help right now")).toBe(true);
     });
 
     it("Gemini down + \"Grandma it's me, I need help\" -> the safe word challenge", async () => {

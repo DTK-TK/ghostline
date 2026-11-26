@@ -24,7 +24,7 @@ import {
 import type { CallEventRow, CallOutcome, CallRow, CallState, HouseholdRow, RiskLevel } from "@/lib/db";
 import { enterHighRisk } from "@/lib/time-waster";
 import { getTelephony } from "@/lib/providers";
-import { sendAlerts } from "@/lib/alerts";
+import { alertCall } from "@/lib/alert-call";
 import { buildAndStoreReport } from "@/lib/report";
 import { maskPhone } from "@/lib/phone";
 import { scoreRules } from "@/lib/scoring/rules";
@@ -342,7 +342,7 @@ export async function recordCallbackResult(
   // A denial is alerted at once, only here: this point is reached once per
   // call because the first result wins above.
   if (outcome === "denied") {
-    await alertOnDenial({ ...call, risk_score: combined.score, risk_level: combined.level, state }, events);
+    await alertOnDenial(call);
   }
 
   return { recorded: true, call, level: combined.level, score: combined.score, state };
@@ -350,26 +350,16 @@ export async function recordCallbackResult(
 
 /**
  * Alert the family and store the fraud report for a denied callback.
- * Best effort: a failed SMS or report never fails the webhook. sendAlerts and
+ * Best effort: a failed SMS or report never fails the webhook. alertCall and
  * buildAndStoreReport are idempotent, so an alert already sent for the call
  * is not repeated. The report is for the family to file, never auto-submitted.
  */
-async function alertOnDenial(call: CallRow, events: CallEventRow[]): Promise<void> {
+async function alertOnDenial(call: CallRow): Promise<void> {
+  await alertCall(call.id);
   try {
-    const attempts = events.filter((e) => e.type === "safe_word_attempt");
-    const last = attempts[attempts.length - 1];
-    await sendAlerts({
-      call,
-      level: "high",
-      claimedIdentity: call.claimed_identity,
-      requestedAmount: call.requested_amount,
-      paymentMethod: call.payment_method,
-      safeWordResult: !last ? "not asked" : last.payload["matched"] === true ? "passed" : "failed",
-      callbackResult: "denied",
-    });
     await buildAndStoreReport(call.id);
   } catch (err) {
-    console.error("[callback] alert or report failed:", err instanceof Error ? err.message : "unknown");
+    console.error("[callback] report failed:", err instanceof Error ? err.message : "unknown");
   }
 }
 

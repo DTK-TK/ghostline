@@ -6,17 +6,17 @@
  *
  * Rules (verbatim from scam-rules.md):
  *   final score = max(rules_score, ai_score)
- *   correct safe word â†?subtract 40, floor 0 (never cancels callback_denied)
- *   callback_denied   â†?add 100 (uncapped, never reduced by safe word)
+ *   correct safe word - subtract 40, floor 0 (never cancels callback_denied)
+ *   callback_denied   - add 100 (uncapped, never reduced by safe word)
  *
  * Risk bands:
- *   LOW     0 â€?39
- *   MEDIUM  40 â€?69
+ *   LOW     0 - 39
+ *   MEDIUM  40 - 69
  *   HIGH    70+
  *
  * Note: scam-rules.md uses LOW/MEDIUM/HIGH. The DB schema has an extra
  * "critical" level for future use; combine.ts never produces "critical"
- * directly â€?that is reserved for explicit overrides (e.g. a confirmed
+ * directly - that is reserved for explicit overrides (e.g. a confirmed
  * deepfake alert if that feature is added later).
  */
 

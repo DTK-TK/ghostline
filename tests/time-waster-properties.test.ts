@@ -18,7 +18,7 @@ vi.mock("@/lib/db", () => ({
   updateCall: vi.fn(async () => undefined),
   appendEvent: vi.fn(async () => undefined),
 }));
-vi.mock("@/lib/alerts", () => ({ sendAlerts: vi.fn(async () => undefined) }));
+vi.mock("@/lib/alert-call", () => ({ alertCall: vi.fn(async () => undefined) }));
 
 const START = new Date("2026-01-01T00:00:00.000Z");
 

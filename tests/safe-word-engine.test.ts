@@ -34,7 +34,7 @@ vi.mock("@/lib/db", () => ({
 vi.mock("@/lib/providers", () => ({
   getTelephony: () => ({ startCallbackCall: mem.callbackCall }),
 }));
-vi.mock("@/lib/alerts", () => ({ sendAlerts: vi.fn(async () => undefined) }));
+vi.mock("@/lib/alert-call", () => ({ alertCall: vi.fn(async () => undefined) }));
 vi.mock("@/lib/scoring/ai", async (orig) => {
   const real = await orig<typeof import("@/lib/scoring/ai")>();
   return { ...real, callGemini: (...a: unknown[]) => mem.gemini(...a) };

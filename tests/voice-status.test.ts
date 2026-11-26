@@ -6,8 +6,15 @@ const db = vi.hoisted(() => ({
   updateCall: vi.fn(),
   appendEvent: vi.fn(),
   getCallEvents: vi.fn(),
+  getCallById: vi.fn(),
 }));
 vi.mock("@/lib/db", () => db);
+
+const alerts = vi.hoisted(() => ({ sendAlerts: vi.fn() }));
+vi.mock("@/lib/alerts", () => alerts);
+
+const report = vi.hoisted(() => ({ buildAndStoreReport: vi.fn() }));
+vi.mock("@/lib/report", () => report);
 
 import { POST } from "@/app/api/voice/status/route";
 
@@ -23,6 +30,9 @@ beforeEach(() => {
   db.updateCall.mockResolvedValue({});
   db.appendEvent.mockResolvedValue({});
   db.getCallEvents.mockResolvedValue([]);
+  db.getCallById.mockResolvedValue(null);
+  alerts.sendAlerts.mockResolvedValue(undefined);
+  report.buildAndStoreReport.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -159,6 +169,74 @@ describe("POST /api/voice/status", () => {
       } finally {
         vi.useRealTimers();
       }
+    });
+  });
+
+  describe("alerts and report at call end", () => {
+    function callAtRisk(risk_level: string) {
+      const call = callFixture({ risk_level });
+      db.getCallBySid.mockResolvedValue(call);
+      // alertCall re-reads the call; by now it has ended.
+      db.getCallById.mockResolvedValue({ ...call, state: "completed", ended_at: "2026-01-01T00:05:00.000Z" });
+    }
+
+    it("medium: alerts the family and builds no report", async () => {
+      callAtRisk("medium");
+
+      const res = await status("completed");
+
+      expect(res.status).toBe(204);
+      expect(alerts.sendAlerts).toHaveBeenCalledTimes(1);
+      expect(alerts.sendAlerts.mock.calls[0]![0]).toMatchObject({ level: "medium" });
+      expect(report.buildAndStoreReport).not.toHaveBeenCalled();
+    });
+
+    it("high: alerts the family and builds the report", async () => {
+      callAtRisk("high");
+
+      const res = await status("completed");
+
+      expect(res.status).toBe(204);
+      expect(alerts.sendAlerts).toHaveBeenCalledTimes(1);
+      expect(alerts.sendAlerts.mock.calls[0]![0]).toMatchObject({ level: "high" });
+      expect(report.buildAndStoreReport).toHaveBeenCalledWith(callFixture().id);
+    });
+
+    it("low: no alert content and no report", async () => {
+      callAtRisk("low");
+
+      const res = await status("completed");
+
+      expect(res.status).toBe(204);
+      expect(alerts.sendAlerts).not.toHaveBeenCalled();
+      expect(report.buildAndStoreReport).not.toHaveBeenCalled();
+    });
+
+    it("still returns 204 when sending the alert throws", async () => {
+      callAtRisk("high");
+      alerts.sendAlerts.mockRejectedValue(new Error("sms down"));
+
+      const res = await status("completed");
+
+      expect(res.status).toBe(204);
+      expect(report.buildAndStoreReport).toHaveBeenCalledTimes(1);
+    });
+
+    it("still returns 204 when loading the call for the alert throws", async () => {
+      callAtRisk("medium");
+      db.getCallById.mockRejectedValue(new Error("db blip"));
+
+      expect((await status("completed")).status).toBe(204);
+    });
+
+    it("still returns 204 when the report throws", async () => {
+      callAtRisk("high");
+      report.buildAndStoreReport.mockRejectedValue(new Error("report failed"));
+
+      const res = await status("completed");
+
+      expect(res.status).toBe(204);
+      expect(alerts.sendAlerts).toHaveBeenCalledTimes(1);
     });
   });
 

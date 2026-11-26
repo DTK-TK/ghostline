@@ -1,4 +1,4 @@
-﻿/**
+/**
  * POST /api/voice/callback-result (safe-word-and-callback task 2).
  * Press 1 = denied, press 2 = confirmed, no answer or busy = no_answer.
  */
@@ -15,9 +15,9 @@ const db = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/db", () => db);
 
-const alerts = vi.hoisted(() => ({ sendAlerts: vi.fn() }));
+const alerts = vi.hoisted(() => ({ alertCall: vi.fn() }));
 const report = vi.hoisted(() => ({ buildAndStoreReport: vi.fn() }));
-vi.mock("@/lib/alerts", () => alerts);
+vi.mock("@/lib/alert-call", () => alerts);
 vi.mock("@/lib/report", () => report);
 
 import { POST } from "@/app/api/voice/callback-result/route";
@@ -180,7 +180,7 @@ describe("POST /api/voice/callback-result: shared HIGH transition", () => {
 
 describe("POST /api/voice/callback-result: family alert", () => {
   beforeEach(() => {
-    alerts.sendAlerts.mockResolvedValue(undefined);
+    alerts.alertCall.mockResolvedValue(undefined);
     report.buildAndStoreReport.mockResolvedValue({});
   });
 
@@ -189,24 +189,24 @@ describe("POST /api/voice/callback-result: family alert", () => {
     await post({ Digits: "1" });
     await post({ CallStatus: "completed" });
 
-    expect(alerts.sendAlerts).toHaveBeenCalledTimes(1);
-    expect(alerts.sendAlerts.mock.calls[0]![0]).toMatchObject({ level: "high", callbackResult: "denied" });
+    expect(alerts.alertCall).toHaveBeenCalledTimes(1);
+    expect(alerts.alertCall.mock.calls[0]![0]).toEqual(expect.any(String));
     expect(report.buildAndStoreReport).toHaveBeenCalledTimes(1);
   });
 
   it("does not alert on confirmed", async () => {
     await post({ Digits: "2" });
-    expect(alerts.sendAlerts).not.toHaveBeenCalled();
+    expect(alerts.alertCall).not.toHaveBeenCalled();
     expect(report.buildAndStoreReport).not.toHaveBeenCalled();
   });
 
   it("does not alert on no_answer", async () => {
     await post({ CallStatus: "no-answer" });
-    expect(alerts.sendAlerts).not.toHaveBeenCalled();
+    expect(alerts.alertCall).not.toHaveBeenCalled();
   });
 
   it("an alert failure does not fail the webhook", async () => {
-    alerts.sendAlerts.mockRejectedValue(new Error("sms down"));
+    alerts.alertCall.mockRejectedValue(new Error("sms down"));
     const res = await post({ Digits: "1" });
     expect(res.status).toBe(200);
     expect(results()).toEqual(["denied"]);

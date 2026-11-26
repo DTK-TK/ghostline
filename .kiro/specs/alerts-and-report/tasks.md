@@ -63,7 +63,7 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
     payment method._
   - _MVP, build item 8: Amount and payment method must be stored for the alert and report._
 
-- [ ] **7. Red-flag quotes.** `scoreRules` returns `matches: { flag, quote }[]`;
+- [x] **7. Red-flag quotes.** `scoreRules` returns `matches: { flag, quote }[]`;
   the engine writes `quote` on each `red_flag` event (instead of "rules-only" or
   "ai+rules"); the report uses `quote`. Update the zod schemas.
   - _Proof: `tests/scoring-rules.test.ts` (quote contains the matched phrase,
@@ -71,7 +71,7 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
     quotes; CAFC text shows them)._
   - _MVP, build item 8: Red-flag quotes are stored evidence._
 
-- [ ] **9. SMS body.** New template, per-field limits (40, 20, 20), cleaning of
+- [x] **9. SMS body.** New template, per-field limits (40, 20, 20), cleaning of
   URLs, control and non-GSM characters, link never cut, ASCII `...`, `pending`
   callback value.
   - _Proof: `tests/alerts.test.ts` with fast-check: for any strings, body is at
@@ -81,24 +81,24 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
   - _MVP, build item 8: SMS body with capped fields; the link is never cut._
   - _Re-plan: Per-field caps 40 / 20 / 20 as written; total at most 320 characters._
 
-- [ ] **10. Money-move checklist.** Rewrite `buildChecklistSms` as steps chosen by
+- [x] **10. Money-move checklist.** Rewrite `buildChecklistSms` as steps chosen by
   payment method, naming the callback target from `getCallbackTargets()`, at
   most 320 characters, no caller text. Send only when `payment_method` is set.
   - _Proof: `tests/alerts.test.ts`: four payment branches, contact named,
     fallback "a family member", `paymentMethod: null` sends no second SMS._
   - _MVP, build item 8: Money-move checklist SMS for HIGH calls._
 
-- [ ] **8a. At-most-once sending (unique index only).** Migration: unique index on `call_events` for `alert_sent` (call, alert_type, recipient_id). In `lib/alerts.ts`: insert the `alert_sent` row first and send only if the insert succeeds (a unique violation means it was already sent), with a per-recipient `try/catch` so one failure does not stop the others.
+- [x] **8a. At-most-once sending (unique index only).** Migration: unique index on `call_events` for `alert_sent` (call, alert_type, recipient_id). In `lib/alerts.ts`: insert the `alert_sent` row first and send only if the insert succeeds (a unique violation means it was already sent), with a per-recipient `try/catch` so one failure does not stop the others.
   - _Proof: `tests/alerts-once.test.ts` case (b); a failing `sendSms` for one recipient still sends to the other._
   - _MVP, build item 8: Keeps the unique index so an alert is never sent twice._
 
-- [ ] **15. Privacy of logs.** Add or reuse `maskPhone`. `sendAlerts`,
+- [x] **15. Privacy of logs.** Add or reuse `maskPhone`. `sendAlerts`,
   `alertCall` and `MockTelephony` log no full numbers and no SMS bodies.
   - _Proof: `tests/alerts.test.ts`: spy on `console.log`/`console.error` during
     a send with a real-looking number; no call contains the number or the body._
   - _MVP, build item 8: Privacy rule: no full numbers or SMS bodies in logs._
 
-- [ ] **5. Wire the triggers.** Add `lib/alert-call.ts` (`alertCall(callId)`) and
+- [x] **5. Wire the triggers.** Add `lib/alert-call.ts` (`alertCall(callId)`) and
   call it when a call becomes HIGH (engine, callback-result, hold-check), when a
   MEDIUM call takes a message, and from `/api/voice/status` on call end, which
   also calls `buildAndStoreReport(call.id)` for HIGH calls. Alert and report
@@ -110,7 +110,7 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
   - _MVP, build item 8: Triggers send the alerts._
   - _Re-plan: Decision: HIGH sends immediately; MEDIUM sends at message-taken or call end; never a second alert per call. The report-on-call-end part belongs to build item 9._
 
-- [ ] **4. Test: alerts are sent only once per call, even if HIGH is reported on several turns.**
+- [x] **4. Test: alerts are sent only once per call, even if HIGH is reported on several turns.**
   `tests/alerts-once.test.ts`. Mock `@/lib/providers` so `getTelephony()`
   returns `{ sendSms: vi.fn() }`. Mock `@/lib/db` with a stateful fake
   (`appendEvent` stores events, `getCallEvents` returns them,

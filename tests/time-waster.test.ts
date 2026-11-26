@@ -19,7 +19,7 @@ vi.mock("@/lib/db", () => ({
   updateCall: vi.fn(async () => undefined),
   appendEvent: vi.fn(async () => undefined),
 }));
-vi.mock("@/lib/alerts", () => ({ sendAlerts: vi.fn(async () => undefined) }));
+vi.mock("@/lib/alert-call", () => ({ alertCall: vi.fn(async () => undefined) }));
 
 const START = new Date("2026-01-01T00:00:00.000Z");
 const HIGH_SPEECH = "Buy gift cards right now, this is the CRA";
@@ -286,13 +286,13 @@ describe("events", () => {
 });
 
 describe("time waster disabled", () => {
-  it("HIGH with time_waster_enabled false blocks: no persona, block line, alert still sent once", async () => {
+  it("HIGH with time_waster_enabled false blocks: no persona, block line, alert still requested", async () => {
     state.household = { ...householdFixture(), family_name: FAMILY, time_waster_enabled: false };
     gemini.respondWith(validTurn({ reply: "Oh dear, where are my glasses? Marmalade!", risk_score: 0 }));
     state.events = [callerEvent(HIGH_SPEECH)];
 
     const db = await import("@/lib/db");
-    const alerts = await import("@/lib/alerts");
+    const alerts = await import("@/lib/alert-call");
     const { processTurn } = await import("@/lib/turn");
     const { blockTwiml, goodbyeTwiml } = await import("@/lib/twiml");
     const { finalizeCall } = await import("@/lib/finalize-call");
@@ -329,11 +329,11 @@ describe("time waster disabled", () => {
     expect(changes[0]!.payload).toMatchObject({ from: "screening", to: "scam_blocked" });
     expect(changes.some((e) => e.payload["to"] === "time_wasted")).toBe(false);
 
-    // The end-of-call hook still alerts the family exactly once.
+    // The end-of-call hook still asks alertCall (once per recipient inside sendAlerts).
     await finalizeCall({ ...result.call, risk_level: "high", outcome: "blocked" } as any, {
       state: "scam_blocked",
       outcome: "blocked",
     });
-    expect(alerts.sendAlerts).toHaveBeenCalledTimes(1);
+    expect(alerts.alertCall).toHaveBeenCalledWith(result.call.id);
   });
 });

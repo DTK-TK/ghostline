@@ -1,3 +1,4 @@
+import fc from "fast-check";
 import { describe, it, expect } from "vitest";
 import { scoreRules } from "@/lib/scoring/rules";
 
@@ -66,7 +67,7 @@ describe("scoreRules", () => {
   });
 
   it("returns zero for an empty transcript", () => {
-    expect(scoreRules([])).toEqual({ score: 0, flags: [] });
+    expect(scoreRules([])).toEqual({ score: 0, flags: [], matches: [] });
   });
 
   it("fires each flag once however often it repeats", () => {
@@ -93,5 +94,39 @@ describe("scoreRules", () => {
     "Hi, I'm your neighbour Sam, just checking you got the mail.",
   ])("legitimate speech stays below MEDIUM: %s", (text) => {
     expect(scoreRules([text]).score).toBeLessThan(40);
+  });
+  describe("matches (quotes)", () => {
+    it("quote is the caller utterance containing the matched phrase", () => {
+      const turns = ["Hello, this is Pat.", "You must buy a gift card for me"];
+      const r = scoreRules(turns);
+      expect(r.matches).toEqual([{ flag: "payment_method", quote: turns[1] }]);
+      expect(r.matches[0]!.quote.toLowerCase()).toContain("gift card");
+    });
+
+    it("has one match per flag, in the same order as flags", () => {
+      const r = scoreRules(["Buy a gift card right now and don't tell mom"]);
+      expect(r.matches.map((m) => m.flag)).toEqual(r.flags);
+    });
+
+    it("cuts a long quote to 200 characters", () => {
+      const long = `${"blah ".repeat(80)}gift card`;
+      const q = scoreRules([long]).matches[0]!.quote;
+      expect(q.length).toBeLessThanOrEqual(200);
+    });
+
+    it("uses the same turn for a same-turn pattern", () => {
+      const r = scoreRules(["hello there", "wire the money tonight"]);
+      expect(r.matches.find((m) => m.flag === "payment_method")!.quote).toBe("wire the money tonight");
+    });
+
+    it("property: every quote is non-empty, at most 200 chars, and flags match", () => {
+      fc.assert(
+        fc.property(fc.array(fc.string({ maxLength: 300 }), { maxLength: 5 }), (turns) => {
+          const r = scoreRules(turns);
+          expect(r.matches.map((m) => m.flag)).toEqual(r.flags);
+          for (const m of r.matches) expect(m.quote.length).toBeLessThanOrEqual(200);
+        }),
+      );
+    });
   });
 });

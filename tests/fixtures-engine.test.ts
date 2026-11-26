@@ -61,11 +61,11 @@ vi.mock("@/lib/db", async () => {
     getCallEvents: async (callId: string) => mem.events.filter((e) => e.call_id === callId),
   };
 });
-vi.mock("@/lib/alerts", () => ({ sendAlerts: vi.fn(async () => undefined) }));
+vi.mock("@/lib/alert-call", () => ({ alertCall: vi.fn(async () => undefined) }));
 
 import { createCall, getCallBySid } from "@/lib/db";
 import { processTurn } from "@/lib/turn";
-import { sendAlerts } from "@/lib/alerts";
+import { alertCall } from "@/lib/alert-call";
 import scams from "./fixtures/scams.json";
 import legitimate from "./fixtures/legitimate.json";
 
@@ -85,7 +85,7 @@ const results: Array<{ id: string; level: string | null; state: string; alerts: 
 beforeEach(() => {
   mem.calls = [];
   mem.events = [];
-  vi.mocked(sendAlerts).mockClear();
+  vi.mocked(alertCall).mockClear();
   vi.stubEnv("AI_PROVIDER", "mock");
   vi.spyOn(console, "log").mockImplementation(() => {});
 });
@@ -117,7 +117,7 @@ async function replay(f: Fixture) {
     id: f.id,
     level: call.risk_level as string | null,
     state: call.state as string,
-    alerts: vi.mocked(sendAlerts).mock.calls.length,
+    alerts: vi.mocked(alertCall).mock.calls.length,
     states,
   };
   results.push({ id: out.id, level: out.level, state: out.state, alerts: out.alerts });
@@ -162,7 +162,7 @@ describe("legitimate fixtures replayed through engine()", () => {
     const r = await replay({ ...f, caller: [...f.caller, ...Array(3).fill("Please call us back.")].slice(0, Math.max(3, f.caller.length)) });
     expect(r.state).toBe("completed");
     expect(r.level).toBe("low");
-    expect(sendAlerts).not.toHaveBeenCalled();
+    expect(alertCall).not.toHaveBeenCalled();
   });
 });
 

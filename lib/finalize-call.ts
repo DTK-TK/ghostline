@@ -9,9 +9,9 @@
  * never fails the call update (Twilio would retry the webhook).
  */
 
-import { updateCall, getCallEvents } from "@/lib/db";
+import { updateCall } from "@/lib/db";
 import type { CallRow, CallState, CallOutcome } from "@/lib/db";
-import { sendAlerts } from "@/lib/alerts";
+import { alertCall } from "@/lib/alert-call";
 import { buildAndStoreReport } from "@/lib/report";
 
 export interface FinalizeInput {
@@ -30,33 +30,19 @@ export async function finalizeCall(call: CallRow, end: FinalizeInput): Promise<v
 
   await updateCall(call.call_sid, patch);
 
-  const level = call.risk_level;
-  if (level !== "medium" && level !== "high") return;
-
+  // Both are best effort and idempotent. alertCall should not throw, but a
+  // failure here must never fail the webhook (Twilio would retry it).
   try {
-    const events = await getCallEvents(call.id);
-    const attempts = events.filter((e) => e.type === "safe_word_attempt");
-    const lastAttempt = attempts[attempts.length - 1];
-    const callback = events
-      .filter((e) => e.type === "callback_result")
-      .map((e) => e.payload["outcome"])
-      .pop();
-
-    await sendAlerts({
-      call,
-      level,
-      claimedIdentity: call.claimed_identity,
-      requestedAmount: call.requested_amount,
-      paymentMethod: call.payment_method,
-      safeWordResult: !lastAttempt ? "not asked" : lastAttempt.payload["matched"] === true ? "passed" : "failed",
-      callbackResult:
-        callback === "denied" || callback === "confirmed" || callback === "no_answer"
-          ? callback
-          : "not initiated",
-    });
-
-    if (level === "high") await buildAndStoreReport(call.id);
+    await alertCall(call.id);
   } catch (err) {
-    console.error("[finalize-call] alert or report failed:", err instanceof Error ? err.message : "unknown");
+    console.error("[finalize-call] alert failed:", err instanceof Error ? err.name : "error");
+  }
+
+  if (call.risk_level === "high" || call.risk_level === "critical") {
+    try {
+      await buildAndStoreReport(call.id);
+    } catch (err) {
+      console.error("[finalize-call] report failed:", err instanceof Error ? err.message : "unknown");
+    }
   }
 }

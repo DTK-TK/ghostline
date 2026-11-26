@@ -1,7 +1,7 @@
 /**
  * Automated approximation of the manual check in docs/manual-check-simulate.md
  * (dashboard-and-simulator task 24). Runs whole scenarios through the real
- * simulator, processTurn(), engine(), finalizeCall() and sendAlerts() against
+ * simulator, processTurn(), engine(), finalizeCall(), alertCall() and sendAlerts() against
  * an in-memory database, with a recording telephony provider.
  *
  * It does not cover the browser: the 1.5 s pacing, badges, meter and timer.
@@ -71,6 +71,23 @@ vi.mock("@/lib/db", async () => {
       return row;
     },
     getCallEvents: async (callId: string) => mem.events.filter((e) => e.call_id === callId),
+    getCallById: async (id: string) => {
+      const r = mem.calls.find((c) => c.id === id);
+      return r ? { ...r } : null;
+    },
+    // Mirrors the unique index call_events_alert_once.
+    claimAlertEvent: async (e: Record<string, any>) => {
+      const dup = mem.events.some(
+        (x) =>
+          x.type === "alert_sent" &&
+          x.call_id === e.call_id &&
+          x.payload.alert_type === e.payload.alert_type &&
+          x.payload.recipient_id === e.payload.recipient_id,
+      );
+      if (dup) return false;
+      mem.events.push({ id: String(++mem.seq), created_at: new Date().toISOString(), ...e });
+      return true;
+    },
   };
 });
 
@@ -177,7 +194,7 @@ describe("grandparent (task 24, first half)", () => {
       // In "grandparent" the gift-card line is a wrong safe word answer. It is
       // scanned in memory only, which sets calls.payment_method.
       await run("grandparent");
-      const checklist = mem.sms.filter((s) => s.body.startsWith("Reminder for"));
+      const checklist = mem.sms.filter((s) => s.body.startsWith("GHOSTLINE STEPS"));
       expect(checklist).toHaveLength(FAMILY.length);
     },
   );

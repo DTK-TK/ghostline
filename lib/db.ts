@@ -528,6 +528,20 @@ export async function appendEvent(insert: CallEventInsert): Promise<CallEventRow
   return CallEventSchema.parse(data);
 }
 
+/**
+ * Claim an alert_sent row. Returns true when the row was inserted, false when
+ * the unique index call_events_alert_once says it already exists (23505).
+ * Any other error is thrown.
+ */
+export async function claimAlertEvent(insert: CallEventInsert): Promise<boolean> {
+  const validated = CallEventInsertSchema.parse(insert);
+  CallEventPayloadSchema.parse({ type: validated.type, ...validated.payload });
+  const { error } = await adminDb().from("call_events").insert(validated);
+  if (!error) return true;
+  if (error.code === "23505") return false;
+  throw error;
+}
+
 export async function getCallEvents(callId: string): Promise<CallEventRow[]> {
   const { data, error } = await adminDb()
     .from("call_events")
