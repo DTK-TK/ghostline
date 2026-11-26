@@ -297,3 +297,50 @@ describe("recordCallbackResult scoring (task 3)", () => {
     );
   });
 });
+
+describe("callback score effects: gaps (task 3)", () => {
+  const level = (s: number) => (s >= 70 ? "high" : s >= 40 ? "medium" : "low");
+  const seed = (score: number) => {
+    mem.events = [ev("callback_started", { target_phone: "***0142" })];
+    mem.call = callFixture({ risk_score: score, risk_level: level(score), state: "screening" } as any);
+  };
+  it("confirmed lowers any stored score by exactly 40 (floor 0) and keeps verification open", async () => {
+    const fc = (await import("fast-check")).default;
+    await fc.assert(
+      fc.asyncProperty(fc.integer({ min: 0, max: 100 }), async (score) => {
+        seed(score);
+        const r = await recordCallbackResult("CA_TEST_0001", "confirmed");
+        expect(r.score).toBe(Math.max(0, score - 40));
+        expect(r.level).toBe(level(Math.max(0, score - 40)));
+        // Not blocked: the call stays open and the challenge still follows,
+        // so a correct safe word can still verify the caller.
+        expect(mem.call!.state).toBe("screening");
+        expect(mem.events.some((e) => e.type === "red_flag")).toBe(false);
+        expect(holdDecision(mem.events as any, mem.call as any, 1)).toEqual({ kind: "challenge" });
+      }),
+      { numRuns: 50 },
+    );
+  });
+  it("denied records the callback_denied red flag once", async () => {
+    seed(10);
+    await recordCallbackResult("CA_TEST_0001", "denied");
+    expect(mem.events.filter((e) => e.type === "red_flag" && e.payload.flag === "callback_denied")).toHaveLength(1);
+  });
+  it("a correct safe word before or after a denial never cancels it", async () => {
+    const { creditsFromEvents } = await import("@/lib/scoring/combine");
+    const word = ev("safe_word_attempt", { matched: true, attempt: "[redacted]" });
+    const denied = ev("callback_result", { outcome: "denied" });
+    const started = ev("callback_started", {});
+    expect(creditsFromEvents([started, word, denied] as any)).toBe(0);
+    expect(creditsFromEvents([started, denied, word] as any)).toBe(0);
+    // A later confirmed or second result cannot undo it either.
+    seed(0);
+    await recordCallbackResult("CA_TEST_0001", "denied");
+    mem.events.push(ev("safe_word_attempt", { matched: true, attempt: "[redacted]" }));
+    const again = await recordCallbackResult("CA_TEST_0001", "confirmed");
+    expect(again.recorded).toBe(false);
+    expect(mem.call!.risk_level).toBe("high");
+    expect(mem.call!.risk_score).toBeGreaterThanOrEqual(70);
+    expect(holdDecision(mem.events as any, mem.call as any, 1)).toEqual({ kind: "denied" });
+  });
+});
