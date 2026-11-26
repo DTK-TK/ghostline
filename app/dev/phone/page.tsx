@@ -11,6 +11,8 @@ import { devToolsEnabled } from "@/lib/dev-gate";
 import { adminDb } from "@/lib/db";
 import { HouseholdSchema } from "@/lib/db";
 
+export const dynamic = "force-dynamic";
+
 export default async function DevPhonePage() {
   if (!devToolsEnabled()) notFound();
 

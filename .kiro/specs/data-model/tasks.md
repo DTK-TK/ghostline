@@ -36,7 +36,7 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
   - Helpers: `createFraudReport`, `getFraudReport`
   - _MVP, done: Already built._
 
-- [ ] **5.** Add RLS policies (separate migration) once auth is wired up.
+- [x] **5.** Add RLS policies (separate migration) once auth is wired up.
   - _MVP, build item 4: RLS must be on before the app is reachable on the internet._
   - _Re-plan: Decision: enable RLS on every table with NO policies, in migration 0004 (see dashboard-and-simulator task 2). The browser reads nothing directly; the server uses the service role. Policies wait for Supabase Auth._
 

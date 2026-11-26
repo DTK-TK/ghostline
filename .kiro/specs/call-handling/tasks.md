@@ -56,10 +56,10 @@ Reason: Everything the Dec 4, 2026 demo needs: a real call through the real engi
   - Respond 204; error catch → 500
   - _MVP, done: Already built and reachable from the live routes._
 
-- [ ] **7.** Replace `runTurn()` stub with Gemini implementation (spec 3)
+- [x] **7.** Replace `runTurn()` stub with Gemini implementation (spec 3)
   - _MVP, build item 1: Same work as conversation-and-scoring task 1; do it once, there._
 
-- [ ] **11.** Write `tests/voice-turn.test.ts`
+- [x] **11.** Write `tests/voice-turn.test.ts`
   - Silence ×2: expect `silenceGoodbyeTwiml` body
   - Happy path each nextState: verify correct TwiML verb in body
   - Invalid signature: expect 403
